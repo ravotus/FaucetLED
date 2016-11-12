@@ -72,7 +72,7 @@ PCD_HandleTypeDef hpcd_USB_FS;
 
 WWDG_HandleTypeDef hwwdg;
 
-osThreadId defaultTaskHandle;
+osThreadId LedToggleHandle;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -84,7 +84,7 @@ void SystemClock_Config(void);
 void Error_Handler(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
-void StartDefaultTask(void const * argument);
+void LedToggleTask(void const * argument);
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
                                 
@@ -134,9 +134,9 @@ int main(void)
   /* USER CODE END RTOS_TIMERS */
 
   /* Create the thread(s) */
-  /* definition and creation of defaultTask */
-  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
-  defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
+  /* definition and creation of LedToggle */
+  osThreadDef(LedToggle, LedToggleTask, osPriorityNormal, 0, 128);
+  LedToggleHandle = osThreadCreate(osThread(LedToggle), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -634,17 +634,17 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE END 4 */
 
-/* StartDefaultTask function */
-void StartDefaultTask(void const * argument)
+/* LedToggleTask function */
+void LedToggleTask(void const * argument)
 {
 
   /* USER CODE BEGIN 5 */
   /* Infinite loop */
-  for(;;)
-  {
-    BSP_LED_Toggle(LED3);
-    osDelay(1000);
-  }
+	for(;;)
+	{
+		BSP_LED_Toggle(LED3);
+		osDelay(500);
+	}
   /* USER CODE END 5 */ 
 }
 
@@ -656,10 +656,11 @@ void StartDefaultTask(void const * argument)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler */
-  /* User can add his own implementation to report the HAL error return state */
-  while(1) 
-  {
-  }
+	/* User can add his own implementation to report the HAL error return state */
+	BSP_LED_On(LED3);
+	while(1)
+	{
+	}
   /* USER CODE END Error_Handler */ 
 }
 
