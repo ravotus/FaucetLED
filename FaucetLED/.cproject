@@ -19,7 +19,7 @@
 						<toolChain id="fr.ac6.managedbuild.toolchain.gnu.cross.exe.debug.1470612393" name="Ac6 STM32 MCU GCC" superClass="fr.ac6.managedbuild.toolchain.gnu.cross.exe.debug">
 							<option id="fr.ac6.managedbuild.option.gnu.cross.prefix.1636795566" name="Prefix" superClass="fr.ac6.managedbuild.option.gnu.cross.prefix" value="arm-none-eabi-" valueType="string"/>
 							<option id="fr.ac6.managedbuild.option.gnu.cross.mcu.1525385143" name="Mcu" superClass="fr.ac6.managedbuild.option.gnu.cross.mcu" value="STM32L432KCUx" valueType="string"/>
-							<option id="fr.ac6.managedbuild.option.gnu.cross.board.729329004" name="Board" superClass="fr.ac6.managedbuild.option.gnu.cross.board" value="NUCLEO-L432KC" valueType="string"/>
+							<option id="fr.ac6.managedbuild.option.gnu.cross.board.729329004" name="Board" superClass="fr.ac6.managedbuild.option.gnu.cross.board" value="FaucetLED" valueType="string"/>
 							<option id="fr.ac6.managedbuild.option.gnu.cross.instructionSet.11092357" name="Instruction Set" superClass="fr.ac6.managedbuild.option.gnu.cross.instructionSet" value="fr.ac6.managedbuild.option.gnu.cross.instructionSet.thumbII" valueType="enumerated"/>
 							<option id="fr.ac6.managedbuild.option.gnu.cross.fpu.806676003" name="Floating point hardware" superClass="fr.ac6.managedbuild.option.gnu.cross.fpu" value="fr.ac6.managedbuild.option.gnu.cross.fpu.fpv4-sp-d16" valueType="enumerated"/>
 							<option id="fr.ac6.managedbuild.option.gnu.cross.floatabi.697084568" name="Floating-point ABI" superClass="fr.ac6.managedbuild.option.gnu.cross.floatabi" value="fr.ac6.managedbuild.option.gnu.cross.floatabi.hard" valueType="enumerated"/>
@@ -104,8 +104,8 @@
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 	<storageModule moduleId="refreshScope" versionNumber="2">
-		<configuration configurationName="Debug">
-			<resource resourceType="PROJECT" workspacePath="/FaucetLED"/>
+		<configuration artifactName="FaucetLED" configurationName="Debug">
+			<resource resourceType="PROJECT" workspacePath="FaucetLED"/>
 		</configuration>
 	</storageModule>
 </cproject>
