@@ -46,6 +46,7 @@
 #include "cmsis_os.h"
 
 /* USER CODE BEGIN Includes */
+#include "stm32l4xx_nucleo_32.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -117,7 +118,7 @@ int main(void)
   MX_ADC1_Init();
 
   /* USER CODE BEGIN 2 */
-
+  BSP_LED_Init(LED3);
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -641,7 +642,8 @@ void StartDefaultTask(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    BSP_LED_Toggle(LED3);
+    osDelay(1000);
   }
   /* USER CODE END 5 */ 
 }
