@@ -72,7 +72,8 @@ osThreadId LedToggleHandle;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-
+// Nick: No idea why this isn't included in any headers from ST...
+static const uint16_t *VREFINT_CAL = (uint16_t *)0x1fff75aa;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -80,6 +81,7 @@ void SystemClock_Config(void);
 void Error_Handler(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_OPAMP1_Init(void);
 void LedToggleTask(void const * argument);
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
@@ -112,6 +114,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_ADC1_Init();
+  MX_OPAMP1_Init();
 
   /* USER CODE BEGIN 2 */
   BSP_LED_Init(LED3);
@@ -249,11 +252,12 @@ static void MX_ADC1_Init(void)
 {
 
   ADC_ChannelConfTypeDef sConfig;
+  ADC_InjectionConfTypeDef sConfigInjected;
 
     /**Common config 
     */
   hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV4;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
@@ -267,21 +271,51 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.DMAContinuousRequests = DISABLE;
   hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
-  hadc1.Init.OversamplingMode = DISABLE;
+  hadc1.Init.OversamplingMode = ENABLE;
+  hadc1.Init.Oversampling.Ratio = ADC_OVERSAMPLING_RATIO_8;
+  hadc1.Init.Oversampling.RightBitShift = ADC_RIGHTBITSHIFT_3;
+  hadc1.Init.Oversampling.TriggeredMode = ADC_TRIGGEREDMODE_SINGLE_TRIGGER;
+  hadc1.Init.Oversampling.OversamplingStopReset = ADC_REGOVERSAMPLING_RESUMED_MODE;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
     Error_Handler();
   }
 
+    /**Disable Injected Queue 
+    */
+  HAL_ADCEx_DisableInjectedQueue(&hadc1);
+
     /**Configure Regular Channel 
     */
-  sConfig.Channel = ADC_CHANNEL_VREFINT;
+  sConfig.Channel = ADC_CHANNEL_8;
   sConfig.Rank = 1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_6CYCLES_5;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+    /**Configure Injected Channel 
+    */
+  sConfigInjected.InjectedChannel = ADC_CHANNEL_VREFINT;
+  sConfigInjected.InjectedRank = 1;
+  sConfigInjected.InjectedSamplingTime = ADC_SAMPLETIME_6CYCLES_5;
+  sConfigInjected.InjectedSingleDiff = ADC_SINGLE_ENDED;
+  sConfigInjected.InjectedOffsetNumber = ADC_OFFSET_NONE;
+  sConfigInjected.InjectedOffset = 0;
+  sConfigInjected.InjectedNbrOfConversion = 1;
+  sConfigInjected.InjectedDiscontinuousConvMode = DISABLE;
+  sConfigInjected.AutoInjectedConv = DISABLE;
+  sConfigInjected.QueueInjectedContext = DISABLE;
+  sConfigInjected.ExternalTrigInjecConv = ADC_INJECTED_SOFTWARE_START;
+  sConfigInjected.ExternalTrigInjecConvEdge = ADC_EXTERNALTRIGINJECCONV_EDGE_NONE;
+  sConfigInjected.InjecOversamplingMode = ENABLE;
+  sConfigInjected.InjecOversampling.Ratio = ADC_OVERSAMPLING_RATIO_256;
+  sConfigInjected.InjecOversampling.RightBitShift = ADC_RIGHTBITSHIFT_8;
+  if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
   {
     Error_Handler();
   }
@@ -328,11 +362,10 @@ static void MX_OPAMP1_Init(void)
 {
 
   hopamp1.Instance = OPAMP1;
-  hopamp1.Init.PowerSupplyRange = OPAMP_POWERSUPPLY_LOW;
-  hopamp1.Init.Mode = OPAMP_PGA_MODE;
+  hopamp1.Init.PowerSupplyRange = OPAMP_POWERSUPPLY_HIGH;
+  hopamp1.Init.Mode = OPAMP_STANDALONE_MODE;
   hopamp1.Init.NonInvertingInput = OPAMP_NONINVERTINGINPUT_IO0;
   hopamp1.Init.InvertingInput = OPAMP_INVERTINGINPUT_IO0;
-  hopamp1.Init.PgaGain = OPAMP_PGA_GAIN_2;
   hopamp1.Init.PowerMode = OPAMP_POWERMODE_NORMAL;
   hopamp1.Init.UserTrimming = OPAMP_TRIMMING_FACTORY;
   if (HAL_OPAMP_Init(&hopamp1) != HAL_OK)
@@ -593,7 +626,12 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+volatile uint32_t VRefIntValue;
+volatile uint32_t AdcCounts;
 
+#define NUM_ADC_INDEXES 10
+volatile float AdcVoltage[NUM_ADC_INDEXES];
+volatile unsigned AdcIndex = 0;
 /* USER CODE END 4 */
 
 /* LedToggleTask function */
@@ -601,11 +639,85 @@ void LedToggleTask(void const * argument)
 {
 
   /* USER CODE BEGIN 5 */
-  /* Infinite loop */
+	uint32_t last_wake_time;
+
+	if (HAL_OPAMP_SelfCalibrate(&hopamp1) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	if (HAL_OPAMP_Start(&hopamp1) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	if (HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	if (HAL_ADCEx_InjectedStart(&hadc1) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	while (HAL_ADCEx_InjectedPollForConversion(&hadc1, 0) == HAL_TIMEOUT)
+	{
+		osThreadYield();
+	}
+	VRefIntValue = HAL_ADCEx_InjectedGetValue(&hadc1, ADC_INJECTED_RANK_1);
+
+	if (HAL_ADCEx_InjectedStop(&hadc1) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	last_wake_time = osKernelSysTick();
+
 	for(;;)
 	{
-		BSP_LED_Toggle(LED3);
-		osDelay(500);
+		//BSP_LED_Toggle(LED3);
+
+		if (HAL_ADC_Start(&hadc1) != HAL_OK)
+		{
+			Error_Handler();
+		}
+
+		while (HAL_ADC_PollForConversion(&hadc1, 0) == HAL_TIMEOUT)
+		{
+			osThreadYield();
+		}
+		AdcCounts = HAL_ADC_GetValue(&hadc1);
+		AdcVoltage[AdcIndex++] = 3.0f * (*VREFINT_CAL) * AdcCounts / (VRefIntValue * 4095.0);
+
+		if (AdcIndex >= NUM_ADC_INDEXES)
+		{
+			AdcIndex = 0;
+
+			float avg = 0.0f;
+			for(unsigned i=0; i<NUM_ADC_INDEXES; ++i)
+			{
+				avg += AdcVoltage[i];
+			}
+			avg /= NUM_ADC_INDEXES;
+
+			if (avg > 0.05)
+			{
+				BSP_LED_On(LED3);
+				osDelay(250);
+			}
+			else
+			{
+				BSP_LED_Off(LED3);
+			}
+		}
+
+		if (HAL_ADC_Stop(&hadc1) != HAL_OK)
+		{
+			Error_Handler();
+		}
+
+		//osDelayUntil(&last_wake_time, 500);
 	}
   /* USER CODE END 5 */ 
 }
