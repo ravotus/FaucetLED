@@ -86,6 +86,7 @@ void HAL_MspInit(void)
 void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
 {
 
+  GPIO_InitTypeDef GPIO_InitStruct;
   if(hadc->Instance==ADC1)
   {
   /* USER CODE BEGIN ADC1_MspInit 0 */
@@ -93,6 +94,18 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
   /* USER CODE END ADC1_MspInit 0 */
     /* Peripheral clock enable */
     __HAL_RCC_ADC_CLK_ENABLE();
+  
+    /**ADC1 GPIO Configuration    
+    PA5     ------> ADC1_IN10 
+    */
+    GPIO_InitStruct.Pin = GPIO_PIN_5;
+    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG_ADC_CONTROL;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    /* Peripheral interrupt init */
+    HAL_NVIC_SetPriority(ADC1_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(ADC1_IRQn);
   /* USER CODE BEGIN ADC1_MspInit 1 */
 
   /* USER CODE END ADC1_MspInit 1 */
@@ -110,65 +123,19 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* hadc)
   /* USER CODE END ADC1_MspDeInit 0 */
     /* Peripheral clock disable */
     __HAL_RCC_ADC_CLK_DISABLE();
+  
+    /**ADC1 GPIO Configuration    
+    PA5     ------> ADC1_IN10 
+    */
+    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_5);
+
+    /* Peripheral interrupt DeInit*/
+    HAL_NVIC_DisableIRQ(ADC1_IRQn);
+
   }
   /* USER CODE BEGIN ADC1_MspDeInit 1 */
 
   /* USER CODE END ADC1_MspDeInit 1 */
-
-}
-
-void HAL_COMP_MspInit(COMP_HandleTypeDef* hcomp)
-{
-
-  GPIO_InitTypeDef GPIO_InitStruct;
-  if(hcomp->Instance==COMP2)
-  {
-  /* USER CODE BEGIN COMP2_MspInit 0 */
-
-  /* USER CODE END COMP2_MspInit 0 */
-  
-    /**COMP2 GPIO Configuration    
-    PA5     ------> COMP2_INM
-    PB4 (NJTRST)     ------> COMP2_INP 
-    */
-    GPIO_InitStruct.Pin = GPIO_PIN_5;
-    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-    GPIO_InitStruct.Pin = GPIO_PIN_4;
-    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /* USER CODE BEGIN COMP2_MspInit 1 */
-
-  /* USER CODE END COMP2_MspInit 1 */
-  }
-
-}
-
-void HAL_COMP_MspDeInit(COMP_HandleTypeDef* hcomp)
-{
-
-  if(hcomp->Instance==COMP2)
-  {
-  /* USER CODE BEGIN COMP2_MspDeInit 0 */
-
-  /* USER CODE END COMP2_MspDeInit 0 */
-  
-    /**COMP2 GPIO Configuration    
-    PA5     ------> COMP2_INM
-    PB4 (NJTRST)     ------> COMP2_INP 
-    */
-    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_5);
-
-    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_4);
-
-  }
-  /* USER CODE BEGIN COMP2_MspDeInit 1 */
-
-  /* USER CODE END COMP2_MspDeInit 1 */
 
 }
 
@@ -494,40 +461,6 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* huart)
 
   /* USER CODE END USART2_MspDeInit 1 */
   }
-
-}
-
-void HAL_PCD_MspInit(PCD_HandleTypeDef* hpcd)
-{
-
-  if(hpcd->Instance==USB)
-  {
-  /* USER CODE BEGIN USB_MspInit 0 */
-
-  /* USER CODE END USB_MspInit 0 */
-    /* Peripheral clock enable */
-    __HAL_RCC_USB_CLK_ENABLE();
-  /* USER CODE BEGIN USB_MspInit 1 */
-
-  /* USER CODE END USB_MspInit 1 */
-  }
-
-}
-
-void HAL_PCD_MspDeInit(PCD_HandleTypeDef* hpcd)
-{
-
-  if(hpcd->Instance==USB)
-  {
-  /* USER CODE BEGIN USB_MspDeInit 0 */
-
-  /* USER CODE END USB_MspDeInit 0 */
-    /* Peripheral clock disable */
-    __HAL_RCC_USB_CLK_DISABLE();
-  }
-  /* USER CODE BEGIN USB_MspDeInit 1 */
-
-  /* USER CODE END USB_MspDeInit 1 */
 
 }
 
