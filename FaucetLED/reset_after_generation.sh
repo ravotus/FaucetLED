@@ -8,3 +8,5 @@ git checkout -- Middlewares/Third_Party/FreeRTOS/Source
 sed -i -b 's_ />_/>_' .cproject
 sed -i -b 's_<?xml version="1.0" encoding="UTF-8"?>_<?xml version="1.0" encoding="UTF-8" standalone="no"?>_' .cproject
 
+# Print git status for convenience
+git status
