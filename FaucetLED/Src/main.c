@@ -54,8 +54,6 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 
-OPAMP_HandleTypeDef hopamp1;
-
 TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart1;
@@ -74,10 +72,9 @@ void SystemClock_Config(void);
 void Error_Handler(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
-static void MX_OPAMP1_Init(void);
 static void MX_TIM1_Init(void);
 void LedToggleTask(void const * argument);
-
+                                    
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
                                 
 
@@ -108,7 +105,6 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_ADC1_Init();
-  MX_OPAMP1_Init();
   MX_TIM1_Init();
 
   /* USER CODE BEGIN 2 */
@@ -280,7 +276,7 @@ static void MX_ADC1_Init(void)
 
     /**Configure Regular Channel 
     */
-  sConfig.Channel = ADC_CHANNEL_8;
+  sConfig.Channel = ADC_CHANNEL_5;
   sConfig.Rank = 1;
   sConfig.SamplingTime = ADC_SAMPLETIME_6CYCLES_5;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
@@ -309,24 +305,6 @@ static void MX_ADC1_Init(void)
   sConfigInjected.InjecOversampling.Ratio = ADC_OVERSAMPLING_RATIO_256;
   sConfigInjected.InjecOversampling.RightBitShift = ADC_RIGHTBITSHIFT_8;
   if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-}
-
-/* OPAMP1 init function */
-static void MX_OPAMP1_Init(void)
-{
-
-  hopamp1.Instance = OPAMP1;
-  hopamp1.Init.PowerSupplyRange = OPAMP_POWERSUPPLY_HIGH;
-  hopamp1.Init.Mode = OPAMP_STANDALONE_MODE;
-  hopamp1.Init.NonInvertingInput = OPAMP_NONINVERTINGINPUT_IO0;
-  hopamp1.Init.InvertingInput = OPAMP_INVERTINGINPUT_IO0;
-  hopamp1.Init.PowerMode = OPAMP_POWERMODE_NORMAL;
-  hopamp1.Init.UserTrimming = OPAMP_TRIMMING_FACTORY;
-  if (HAL_OPAMP_Init(&hopamp1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -476,10 +454,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
 
-  /*Configure GPIO pins : PA4 PA5 PA6 PA7 
-                           USR_USB_DM_Pin USR_USB_DP_Pin */
-  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7 
-                          |USR_USB_DM_Pin|USR_USB_DP_Pin;
+  /*Configure GPIO pins : USR_OPAMP1_VINM_Pin USR_OPAMP1_VOUT_Pin PA4 PA5 
+                           PA6 PA7 USR_USB_DM_Pin USR_USB_DP_Pin */
+  GPIO_InitStruct.Pin = USR_OPAMP1_VINM_Pin|USR_OPAMP1_VOUT_Pin|GPIO_PIN_4|GPIO_PIN_5 
+                          |GPIO_PIN_6|GPIO_PIN_7|USR_USB_DM_Pin|USR_USB_DP_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
@@ -515,16 +493,6 @@ void LedToggleTask(void const * argument)
 
   /* USER CODE BEGIN 5 */
 	uint32_t last_wake_time;
-
-	if (HAL_OPAMP_SelfCalibrate(&hopamp1) != HAL_OK)
-	{
-		Error_Handler();
-	}
-
-	if (HAL_OPAMP_Start(&hopamp1) != HAL_OK)
-	{
-		Error_Handler();
-	}
 
 	if (HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED) != HAL_OK)
 	{
