@@ -62,8 +62,8 @@ osThreadId LedToggleHandle;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-// Nick: No idea why this isn't included in any headers from ST...
-static const uint16_t *VREFINT_CAL = (uint16_t *)0x1fff75aa;
+// No idea why this isn't included in any headers from ST...
+#define VREFINT_CAL	((uint32_t)0x1FFF75AAU)
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -459,12 +459,6 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-volatile uint32_t VRefIntValue;
-volatile uint32_t AdcCounts;
-
-#define NUM_ADC_INDEXES 10
-volatile float AdcVoltage[NUM_ADC_INDEXES];
-volatile unsigned AdcIndex = 0;
 /* USER CODE END 4 */
 
 /* LedToggleTask function */
@@ -472,75 +466,12 @@ void LedToggleTask(void const * argument)
 {
 
   /* USER CODE BEGIN 5 */
-	uint32_t last_wake_time;
-
-	if (HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED) != HAL_OK)
-	{
-		Error_Handler();
-	}
-
-	if (HAL_ADCEx_InjectedStart(&hadc1) != HAL_OK)
-	{
-		Error_Handler();
-	}
-
-	while (HAL_ADCEx_InjectedPollForConversion(&hadc1, 0) == HAL_TIMEOUT)
-	{
-		osThreadYield();
-	}
-	VRefIntValue = HAL_ADCEx_InjectedGetValue(&hadc1, ADC_INJECTED_RANK_1);
-
-	if (HAL_ADCEx_InjectedStop(&hadc1) != HAL_OK)
-	{
-		Error_Handler();
-	}
-
-	last_wake_time = osKernelSysTick();
+	uint32_t last_wake_time = osKernelSysTick();
 
 	for(;;)
 	{
-		//BSP_LED_Toggle(LED3);
-
-		if (HAL_ADC_Start(&hadc1) != HAL_OK)
-		{
-			Error_Handler();
-		}
-
-		while (HAL_ADC_PollForConversion(&hadc1, 0) == HAL_TIMEOUT)
-		{
-			osThreadYield();
-		}
-		AdcCounts = HAL_ADC_GetValue(&hadc1);
-		AdcVoltage[AdcIndex++] = 3.0f * (*VREFINT_CAL) * AdcCounts / (VRefIntValue * 4095.0);
-
-		if (AdcIndex >= NUM_ADC_INDEXES)
-		{
-			AdcIndex = 0;
-
-			float avg = 0.0f;
-			for(unsigned i=0; i<NUM_ADC_INDEXES; ++i)
-			{
-				avg += AdcVoltage[i];
-			}
-			avg /= NUM_ADC_INDEXES;
-
-			if (avg > 0.05)
-			{
-				BSP_LED_On(LED3);
-				osDelay(250);
-			}
-			else
-			{
-				BSP_LED_Off(LED3);
-			}
-		}
-
-		if (HAL_ADC_Stop(&hadc1) != HAL_OK)
-		{
-			Error_Handler();
-		}
-
-		//osDelayUntil(&last_wake_time, 500);
+		BSP_LED_Toggle(LED3);
+		osDelayUntil(&last_wake_time, 500);
 	}
   /* USER CODE END 5 */ 
 }
