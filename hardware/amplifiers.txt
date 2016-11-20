@@ -1,0 +1,32 @@
+Single-ended charge amplifier
+=============================
+
+Cfb = 1000pF, Rfb = 200Mohm
+Gain relatively okay - detects slight tapping
+
+Cfb = 100pF, Rfb = 200Mohm
+Much more sensitive - barely tapping registers strongly
+
+Cfb = 10pF, Rfb = 200Mohm
+Extremely sensitive - barely have to touch
+
+Cfb = 10pF, Rfb = 1Gohm
+Still extremely sensitive - moreso to taps
+
+Cfb = 10pF, Rfb = 500Mohm
+Seems same as last
+
+Cfb = 10pF, Rfb = 100Mohm
+Seems same as last
+
+All of the above: frequently encounter 60Hz noise
+
+Differential charge amplifier
+=============================
+Cfb = 10pF, Rfb = 100Mohm
+Very good! Works well at detecting faucet on.
+
+Consider using DAC to generate Vcc/2 reference
+
+Need to look at increasing Rfb to increase SNR (see page 3 of TI signal conditioning full pdf)
+Cheapest SMD: 470M, 150M, 270M, 200M, 500M, 250M

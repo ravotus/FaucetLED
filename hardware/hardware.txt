@@ -1,0 +1,41 @@
+LEDs
+====
+If 3.2V is not right enough on Green/Blue, could either remove series resistors, or go to up to 3.4 or 3.5V supply for micro (3.6V is max)
+
+assume 3.3V supply:
+Red: needs >=70 ohm (use 47+33=80)
+Green/Blue: Needs >=5 ohm (10ohm in || )
+
+From testing:
+Rred = 78ohm (10+68), Ired = 18.49mA (78.7 is a standard value)
+Rgreen = 10ohm, Igreen = 19.70mA
+Rblue = 22ohm, Iblue = 19.64mA
+
+Rred = 78ohm (10+68), Ired = 18.49mA
+Rgreen = 12.2ohm (15||68), Igreen = 18.28mA
+Rblue = 25ohm (15+25), Iblue = 18.60mA
+
+Pin notes
+=========
+If you want to use a WKUP pin, must use WKUP4. In that case, cannot use LPUART.
+On Nucleo board, VCP is connected to PA2 and PA15 (USART2).
+If you want to power directly from 3.3V, need to remove some SB's
+
+Clocks
+======
+MSI is much more power friendly than HSI48, also starts up faster (190uA vs 380uA) - although stabilization time is longer
+HSI16 is very similar to MSI for current - both 190uA. Stabilization is much better though.
+
+ADC
+===
+Be sure to calibrate ADC on powerup. Software can save the calibration value and restore it each time.
+Is being very picky - seems to always be one conversion short in interrupt or polling mode, unless I slow the ADC way down (/128 clk).
+
+Piezo amplifier circuit
+=======================
+Bias at Vcc/2 to avoid issues with differential signal.
+Need to drive into ~10kohm load
+Supply current to TLV2772: ~1.5mA
+Current to MAX4257: ~1.0mA
+
+Choose MAX4256 (has SHDN input)
