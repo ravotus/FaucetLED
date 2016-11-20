@@ -6,3 +6,6 @@
 *.list
 *.map
 *~
+
+.metadata/
+RemoteSystemsTempFiles/
