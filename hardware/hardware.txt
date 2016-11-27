@@ -39,3 +39,11 @@ Supply current to TLV2772: ~1.5mA
 Current to MAX4257: ~1.0mA
 
 Choose MAX4256 (has SHDN input)
+
+Temperature sensor
+==================
+Configure UART Tx/Rx pin as Open-Drain, with no internal pull up/down. The internal pullup is not strong enough.
+Use an external 4.7kohm pullup.
+
+CRC:
+Both input and output needs to be configured to reverse bits, byte-wise. Use Dallas 1-wire CRC polynomial 0x31.

@@ -66,7 +66,7 @@
 #define USR_USART2_RX_Pin GPIO_PIN_15
 #define USR_USART2_RX_GPIO_Port GPIOA
 /* USER CODE BEGIN Private defines */
-
+extern void Error_Handler(void);
 /* USER CODE END Private defines */
 
 /**
