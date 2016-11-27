@@ -2,13 +2,12 @@
 #define __LED_DRIVER_H__
 
 #include <stdint.h>
-
 #include "stm32l4xx_hal_def.h"
 
 #define LED_COLOR_MIN	0
 #define LED_COLOR_MAX	UINT8_MAX
 
-// Note: At least for now, this type should be castable to HAL_StatusTypeDef.
+// For now, this enum should be castable to HAL_StatusTypeDef.
 enum led_error
 {
 	LED_EOK = HAL_OK,
