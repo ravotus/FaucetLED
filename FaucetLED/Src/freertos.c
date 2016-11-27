@@ -58,7 +58,12 @@
 /* Function prototypes -------------------------------------------------------*/
 
 /* USER CODE BEGIN FunctionPrototypes */
-
+#ifdef __GNUC__
+#define USED __attribute__((used))
+#else
+#define USED
+#endif
+const uint32_t USED uxTopUsedPriority = configMAX_PRIORITIES - 1;
 /* USER CODE END FunctionPrototypes */
 
 /* Hook prototypes */

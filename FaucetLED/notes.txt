@@ -1,0 +1,26 @@
+FreeRTOS Thread-Aware debugging
+===============================
+1. Add the following to Project properties->MCU GCC Linker->Miscellaneous->Linker flags
+    -Wl,--undefined=uxTopUsedPriority
+
+2. Add the following somewhere in your source:
+    #ifdef __GNUC__
+    #define USED __attribute__((used))
+    #else
+    #define USED
+    #endif
+    const uint32_t USED uxTopUsedPriority = configMAX_PRIORITIES - 1;
+
+3. Edit your debug configuration .cfg file (not sure if ProjectName.cfg or .custom.cfg is correct) and add:
+    $_TARGETNAME configure -rtos auto
+   (Right after the include of stm32l4.cfg)
+
+4. Open the debug configuration, go to the Startup tab, and uncheck the "Set Breakpoint At: <main>" box, or set the breakpoint
+to a time after the tasks have been added, such as vTaskStartScheduler(). Otherwise, the debugger will fail to start due to
+not knowing about the FreeRTOS tasks and give a cryptic error saying "Invalid selected thread."
+
+Note: If you still have issues even after using the correct for .cfg corresponding to your launch configuration,
+ensure that the temporary "main" breakpoint is removed. Sometimes it hangs around after a "normal" debugging session.
+
+For more info, see:
+http://www.openstm32.org/forumthread2824
