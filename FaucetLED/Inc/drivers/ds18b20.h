@@ -17,7 +17,7 @@ enum ds18b20_error
 	DS18B20_CRC_FAIL,
 };
 
-#define OW_READ_ROM_BUF_LEN		0x08
+#define DS18B20_READ_ROM_BUF_LEN	8
 
 // Initialize the DS18B20 device, including associated peripherals.
 // Parameters:

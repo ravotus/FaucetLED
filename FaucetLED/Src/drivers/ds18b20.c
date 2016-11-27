@@ -1,3 +1,4 @@
+#include "cmsis_os.h"
 #include "stm32l4xx_hal.h"
 
 #include "drivers/ds18b20.h"
@@ -15,17 +16,42 @@
 #define OW_0						0x00
 #define OW_1						0xff
 #define OW_R						0xff
+// The maximum number of bytes read by one command
+#define OW_MAX_CMD_LEN_BYTES		(9 * 8)
 
-#define DS18B20_ROM_CRC_BYTE		0x07
+#define DS18B20_ROM_CRC_BYTE		7
+
 #define DS18B20_READ_ROM_CMD		0x33
+#define DS18B20_SKIP_ROM_CMD		0xCC
 #define DS18B20_CONVERT_TEMP_CMD	0x44
+#define DS18B20_READ_SCRATCHPAD_CMD	0xBE
+
+#define DS18B20_SCRATCHPAD_LEN		9
+#define DS18B20_SCRATCHPAD_CRC_BYTE	8
+
+#define DS18B20_TEMP_RAW12_TO_C		0.0625f
 
 // Currently only a single instance supported
 static UART_HandleTypeDef *ds18b20_uart_dev = NULL;
 static CRC_HandleTypeDef *ds18b20_crc_dev = NULL;
 
+static uint8_t read_buf[OW_MAX_CMD_LEN_BYTES];
+
+// Each value below corresponds to the command, in bits, LSB first.
 static const uint8_t ds18b20_read_rom_cmd[] = {
 		OW_1, OW_1, OW_0, OW_0, OW_1, OW_1, OW_0, OW_0,
+};
+
+static const uint8_t ds18b20_skip_rom_cmd[] = {
+		OW_0, OW_0, OW_1, OW_1, OW_0, OW_0, OW_1, OW_1,
+};
+
+static const uint8_t ds18b20_convert_temp_cmd[] = {
+		OW_0, OW_0, OW_1, OW_0, OW_0, OW_0, OW_1, OW_0,
+};
+
+static const uint8_t ds18b20_read_scratchpad_cmd[] = {
+		OW_0, OW_1, OW_1, OW_1, OW_1, OW_1, OW_0, OW_1,
 };
 
 static inline enum ds18b20_error hal_to_ds18b20_error(HAL_StatusTypeDef hal_status)
@@ -42,6 +68,10 @@ static void ow_bits_to_bytes(uint8_t *bits_in, uint8_t *bytes_out, size_t len)
 		if (bits_in[i] >= OW_BIT_HIGH_THRESH)
 		{
 			bytes_out[(unsigned)(i/8)] |= 1<<(i%8);
+		}
+		else
+		{
+			bytes_out[(unsigned)(i/8)] &= ~(1<<(i%8));
 		}
 	}
 }
@@ -96,6 +126,7 @@ static enum ds18b20_error ds18b20_ow_reset(UART_HandleTypeDef *uart_dev)
 		err_ret = hal_to_ds18b20_error(hal_status);
 		goto out_err;
 	}
+
 	uart_dev->Instance = USART1;
 	uart_dev->Init.BaudRate = 115200;
 	uart_dev->Init.WordLength = UART_WORDLENGTH_8B;
@@ -111,6 +142,7 @@ static enum ds18b20_error ds18b20_ow_reset(UART_HandleTypeDef *uart_dev)
 		err_ret = hal_to_ds18b20_error(hal_status);
 		goto out_err;
 	}
+
 	return err_ret;
 
 out_err:
@@ -165,7 +197,6 @@ enum ds18b20_error ds18b20_read_rom(uint8_t *rom_buf, size_t buf_len)
 {
 	enum ds18b20_error err_ret = DS18B20_EOK;
 	HAL_StatusTypeDef hal_status;
-	uint8_t tmp_read_buf[OW_READ_ROM_BUF_LEN * 8];
 
 	if (!ds18b20_uart_dev)
 	{
@@ -175,7 +206,7 @@ enum ds18b20_error ds18b20_read_rom(uint8_t *rom_buf, size_t buf_len)
 	{
 		return DS18B20_EINVAL;
 	}
-	else if (buf_len < OW_READ_ROM_BUF_LEN)
+	else if (buf_len < DS18B20_READ_ROM_BUF_LEN)
 	{
 		return DS18B20_EINVAL;
 	}
@@ -185,7 +216,7 @@ enum ds18b20_error ds18b20_read_rom(uint8_t *rom_buf, size_t buf_len)
 		goto out;
 	}
 
-	for (unsigned i=0; i<OW_READ_ROM_BUF_LEN; ++i)
+	for (unsigned i=0; i<DS18B20_READ_ROM_BUF_LEN; ++i)
 	{
 		if ((hal_status = HAL_UART_Transmit(ds18b20_uart_dev,
 				(uint8_t *)&ds18b20_read_rom_cmd[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
@@ -194,7 +225,7 @@ enum ds18b20_error ds18b20_read_rom(uint8_t *rom_buf, size_t buf_len)
 			goto out;
 		}
 		else if ((hal_status = HAL_UART_Receive(ds18b20_uart_dev,
-				&tmp_read_buf[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
+				&read_buf[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
 		{
 			err_ret = hal_to_ds18b20_error(hal_status);
 			goto out;
@@ -204,7 +235,7 @@ enum ds18b20_error ds18b20_read_rom(uint8_t *rom_buf, size_t buf_len)
 	}
 
 	// Receive 8 bytes of ROM data, one bit at a time
-	for (unsigned i=0; i<(OW_READ_ROM_BUF_LEN * 8); ++i)
+	for (unsigned i=0; i<(DS18B20_READ_ROM_BUF_LEN * 8); ++i)
 	{
 		if ((hal_status = HAL_UART_Transmit(ds18b20_uart_dev,
 				(uint8_t *)&ds18b20_read_rom_cmd, 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
@@ -213,7 +244,7 @@ enum ds18b20_error ds18b20_read_rom(uint8_t *rom_buf, size_t buf_len)
 			goto out;
 		}
 		else if ((hal_status = HAL_UART_Receive(ds18b20_uart_dev,
-				&tmp_read_buf[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
+				&read_buf[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
 		{
 			err_ret = hal_to_ds18b20_error(hal_status);
 			goto out;
@@ -221,15 +252,146 @@ enum ds18b20_error ds18b20_read_rom(uint8_t *rom_buf, size_t buf_len)
 	}
 
 	// Convert the sequence of OW bits back to actual byte data.
-	ow_bits_to_bytes(tmp_read_buf, rom_buf,	OW_READ_ROM_BUF_LEN * 8);
+	ow_bits_to_bytes(read_buf, rom_buf,	DS18B20_READ_ROM_BUF_LEN * 8);
 
 	// The last byte of the ROM contains the CRC of the data
 	if (HAL_CRC_Calculate(ds18b20_crc_dev, (uint32_t *)rom_buf,
-			OW_READ_ROM_BUF_LEN - 1) != rom_buf[DS18B20_ROM_CRC_BYTE])
+			DS18B20_READ_ROM_BUF_LEN - 1) != rom_buf[DS18B20_ROM_CRC_BYTE])
 	{
 		err_ret = DS18B20_CRC_FAIL;
 		goto out;
 	}
+
+out:
+	return err_ret;
+}
+
+enum ds18b20_error ds18b20_read_temp(float *temperature_C)
+{
+	enum ds18b20_error err_ret = DS18B20_EOK;
+	HAL_StatusTypeDef hal_status;
+	uint8_t ow_read = OW_R;
+
+	if (!ds18b20_uart_dev)
+	{
+		return DS18B20_EDISABLED;
+	}
+	else if (!temperature_C)
+	{
+		return DS18B20_EINVAL;
+	}
+
+	if ((err_ret = ds18b20_ow_reset(ds18b20_uart_dev)) != DS18B20_EOK)
+	{
+		goto out;
+	}
+
+	// Issue skip ROM command
+	for (unsigned i=0; i<8; ++i)
+	{
+		if ((hal_status = HAL_UART_Transmit(ds18b20_uart_dev,
+				(uint8_t *)&ds18b20_skip_rom_cmd[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
+		{
+			err_ret = hal_to_ds18b20_error(hal_status);
+			goto out;
+		}
+		else if ((hal_status = HAL_UART_Receive(ds18b20_uart_dev,
+				&read_buf[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
+		{
+			err_ret = hal_to_ds18b20_error(hal_status);
+			goto out;
+		}
+	}
+
+	// Issue Convert T command
+	for (unsigned i=0; i<8; ++i)
+	{
+		if ((hal_status = HAL_UART_Transmit(ds18b20_uart_dev,
+				(uint8_t *)&ds18b20_convert_temp_cmd[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
+		{
+			err_ret = hal_to_ds18b20_error(hal_status);
+			goto out;
+		}
+		else if ((hal_status = HAL_UART_Receive(ds18b20_uart_dev,
+				&read_buf[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
+		{
+			err_ret = hal_to_ds18b20_error(hal_status);
+			goto out;
+		}
+	}
+
+	osDelay(750);
+
+	if ((err_ret = ds18b20_ow_reset(ds18b20_uart_dev)) != DS18B20_EOK)
+	{
+		goto out;
+	}
+
+	// Issue skip ROM command
+	for (unsigned i=0; i<8; ++i)
+	{
+		if ((hal_status = HAL_UART_Transmit(ds18b20_uart_dev,
+				(uint8_t *)&ds18b20_skip_rom_cmd[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
+		{
+			err_ret = hal_to_ds18b20_error(hal_status);
+			goto out;
+		}
+		else if ((hal_status = HAL_UART_Receive(ds18b20_uart_dev,
+				&read_buf[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
+		{
+			err_ret = hal_to_ds18b20_error(hal_status);
+			goto out;
+		}
+	}
+
+	// Issue read scratchpad command
+	for (unsigned i=0; i<8; ++i)
+	{
+		if ((hal_status = HAL_UART_Transmit(ds18b20_uart_dev,
+				(uint8_t *)&ds18b20_read_scratchpad_cmd[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
+		{
+			err_ret = hal_to_ds18b20_error(hal_status);
+			goto out;
+		}
+		else if ((hal_status = HAL_UART_Receive(ds18b20_uart_dev,
+				&read_buf[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
+		{
+			err_ret = hal_to_ds18b20_error(hal_status);
+			goto out;
+		}
+	}
+
+	// Read scratchpad: Receive 9 bytes of scratchpad data, one bit at a time
+	for (unsigned i=0; i<(DS18B20_SCRATCHPAD_LEN * 8); ++i)
+	{
+		if ((hal_status = HAL_UART_Transmit(ds18b20_uart_dev,
+				(uint8_t *)&ow_read, 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
+		{
+			err_ret = hal_to_ds18b20_error(hal_status);
+			goto out;
+		}
+		else if ((hal_status = HAL_UART_Receive(ds18b20_uart_dev,
+				&read_buf[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
+		{
+			err_ret = hal_to_ds18b20_error(hal_status);
+			goto out;
+		}
+	}
+
+	// Convert the sequence of OW bits back to actual byte data.
+	uint8_t scratchpad_buf[DS18B20_SCRATCHPAD_LEN];
+	ow_bits_to_bytes(read_buf, scratchpad_buf,	DS18B20_SCRATCHPAD_LEN * 8);
+
+	// The last byte of the scratchpad contains the CRC of the data
+	if (HAL_CRC_Calculate(ds18b20_crc_dev, (uint32_t *)scratchpad_buf,
+			DS18B20_SCRATCHPAD_LEN - 1) != scratchpad_buf[DS18B20_SCRATCHPAD_CRC_BYTE])
+	{
+		err_ret = DS18B20_CRC_FAIL;
+		goto out;
+	}
+
+	int16_t temperature = ((scratchpad_buf[1] << 8) & 0xff00) | (scratchpad_buf[0] & 0xff);
+	*temperature_C = temperature * DS18B20_TEMP_RAW12_TO_C;
 
 out:
 	return err_ret;
