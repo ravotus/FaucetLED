@@ -140,7 +140,10 @@ static int inHandlerMode (void)
 * @retval status code that indicates the execution status of the function.
 * @note   MUST REMAIN UNCHANGED: \b osKernelInitialize shall be consistent in every CMSIS-RTOS.
 */
-osStatus osKernelInitialize (void);
+osStatus osKernelInitialize (void)
+{
+	return osOK;
+}
 
 /**
 * @brief  Start the RTOS Kernel with executing the specified thread.
@@ -488,7 +491,10 @@ int32_t osSignalSet (osThreadId thread_id, int32_t signal)
 * @retval  previous signal flags of the specified thread or 0x80000000 in case of incorrect parameters.
 * @note   MUST REMAIN UNCHANGED: \b osSignalClear shall be consistent in every CMSIS-RTOS.
 */
-int32_t osSignalClear (osThreadId thread_id, int32_t signal);
+int32_t osSignalClear (osThreadId thread_id, int32_t signal)
+{
+	return 0;
+}
 
 /**
 * @brief  Wait for one or more Signal Flags to become signaled for the current \b RUNNING thread.
