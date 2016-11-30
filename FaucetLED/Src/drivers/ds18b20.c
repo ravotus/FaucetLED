@@ -1,7 +1,13 @@
-#include "cmsis_os.h"
+#include <limits.h>
+
+#include "FreeRTOS.h"
+#include "task.h"
 #include "stm32l4xx_hal.h"
 
 #include "drivers/ds18b20.h"
+
+#define DMA_RX_COMPLETE				0x01
+#define DMA_TX_COMPLETE 			0x02
 
 #define DS18B20_TIMEOUT_MS			100
 
@@ -36,6 +42,7 @@ static UART_HandleTypeDef *ds18b20_uart_dev = NULL;
 static CRC_HandleTypeDef *ds18b20_crc_dev = NULL;
 
 static uint8_t read_buf[OW_MAX_CMD_LEN_BYTES];
+static TaskHandle_t task_handle = NULL;
 
 // Each value below corresponds to the command, in bits, LSB first.
 static const uint8_t ds18b20_read_rom_cmd[] = {
@@ -53,6 +60,26 @@ static const uint8_t ds18b20_convert_temp_cmd[] = {
 static const uint8_t ds18b20_read_scratchpad_cmd[] = {
 		OW_0, OW_1, OW_1, OW_1, OW_1, OW_1, OW_0, OW_1,
 };
+
+// ST's HAL doesn't provide a good way to enable or disable memory
+// auto-increment, so we provide our own.
+static inline void hal_dma_disable_meminc(DMA_HandleTypeDef *hdma)
+{
+	__HAL_DMA_DISABLE(hdma);
+	if (hdma)
+	{
+		hdma->Instance->CCR &= ~DMA_MINC_ENABLE;
+	}
+}
+
+static inline void hal_dma_enable_meminc(DMA_HandleTypeDef *hdma)
+{
+	__HAL_DMA_DISABLE(hdma);
+	if (hdma)
+	{
+		hdma->Instance->CCR |= DMA_MINC_ENABLE;
+	}
+}
 
 static inline enum ds18b20_error hal_to_ds18b20_error(HAL_StatusTypeDef hal_status)
 {
@@ -97,12 +124,12 @@ static enum ds18b20_error ds18b20_ow_reset(UART_HandleTypeDef *uart_dev)
 	uart_dev->Init.OverSampling = UART_OVERSAMPLING_16;
 	uart_dev->Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
 	uart_dev->AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-
 	if ((hal_status = HAL_HalfDuplex_Init(uart_dev)) != HAL_OK)
 	{
 		err_ret = hal_to_ds18b20_error(hal_status);
 		goto out_err;
 	}
+
 	// Transmit reset command at lower baud
 	if ((hal_status = HAL_UART_Transmit(uart_dev, &reset_cmd, 1, 100)) != HAL_OK)
 	{
@@ -120,7 +147,7 @@ static enum ds18b20_error ds18b20_ow_reset(UART_HandleTypeDef *uart_dev)
 		goto out_err;
 	}
 
-	// Now disable the device, then configure for proper 115200 baud
+	// Now disable the device, then configure for 115200 baud
 	if ((hal_status = HAL_UART_DeInit(uart_dev)) != HAL_OK)
 	{
 		err_ret = hal_to_ds18b20_error(hal_status);
@@ -147,6 +174,47 @@ static enum ds18b20_error ds18b20_ow_reset(UART_HandleTypeDef *uart_dev)
 
 out_err:
 	(void)HAL_UART_DeInit(uart_dev);
+	return err_ret;
+}
+
+static enum ds18b20_error ds18b20_transaction_dma(const uint8_t *tx_buf,
+		uint8_t *rx_buf, uint32_t len, uint32_t timeout)
+{
+	enum ds18b20_error err_ret = DS18B20_EOK;
+	HAL_StatusTypeDef hal_status;
+
+	task_handle = xTaskGetCurrentTaskHandle();
+
+	if ((hal_status = HAL_UART_Transmit_DMA(ds18b20_uart_dev, (uint8_t *)tx_buf, len)) != HAL_OK)
+	{
+		err_ret = hal_to_ds18b20_error(hal_status);
+		goto out;
+	}
+
+	if ((hal_status = HAL_UART_Receive_DMA(ds18b20_uart_dev, rx_buf, len)) != HAL_OK)
+	{
+		err_ret = hal_to_ds18b20_error(hal_status);
+		goto out;
+	}
+
+	uint32_t notify_val;
+	uint32_t wait_bits = DMA_RX_COMPLETE | DMA_TX_COMPLETE;
+	uint32_t start_ticks = xTaskGetTickCount();
+	while ((wait_bits != 0) && ((xTaskGetTickCount() - start_ticks) < timeout))
+	{
+		if (xTaskNotifyWait(0, ULONG_MAX, &notify_val, (timeout/4) || 1))
+		{
+			wait_bits &= ~notify_val;
+		}
+	}
+
+	if (wait_bits != 0)
+	{
+		err_ret = DS18B20_ETIMEOUT;
+		goto out;
+	}
+
+out:
 	return err_ret;
 }
 
@@ -196,7 +264,7 @@ enum ds18b20_error ds18b20_deinit(void)
 enum ds18b20_error ds18b20_read_rom(uint8_t *rom_buf, size_t buf_len)
 {
 	enum ds18b20_error err_ret = DS18B20_EOK;
-	HAL_StatusTypeDef hal_status;
+	uint8_t ow_read = OW_R;
 
 	if (!ds18b20_uart_dev)
 	{
@@ -216,39 +284,20 @@ enum ds18b20_error ds18b20_read_rom(uint8_t *rom_buf, size_t buf_len)
 		goto out;
 	}
 
-	for (unsigned i=0; i<DS18B20_READ_ROM_BUF_LEN; ++i)
+	// Issue read ROM command
+	hal_dma_enable_meminc(ds18b20_uart_dev->hdmatx);
+	if ((err_ret = ds18b20_transaction_dma(ds18b20_read_rom_cmd, read_buf,
+			sizeof(ds18b20_read_rom_cmd), DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
 	{
-		if ((hal_status = HAL_UART_Transmit(ds18b20_uart_dev,
-				(uint8_t *)&ds18b20_read_rom_cmd[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
-		{
-			err_ret = hal_to_ds18b20_error(hal_status);
-			goto out;
-		}
-		else if ((hal_status = HAL_UART_Receive(ds18b20_uart_dev,
-				&read_buf[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
-		{
-			err_ret = hal_to_ds18b20_error(hal_status);
-			goto out;
-		}
-
-		rom_buf[i] = 0;
+		goto out;
 	}
 
 	// Receive 8 bytes of ROM data, one bit at a time
-	for (unsigned i=0; i<(DS18B20_READ_ROM_BUF_LEN * 8); ++i)
+	hal_dma_disable_meminc(ds18b20_uart_dev->hdmatx);
+	if ((err_ret = ds18b20_transaction_dma(&ow_read, read_buf,
+			DS18B20_READ_ROM_BUF_LEN * 8, DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
 	{
-		if ((hal_status = HAL_UART_Transmit(ds18b20_uart_dev,
-				(uint8_t *)&ds18b20_read_rom_cmd, 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
-		{
-			err_ret = hal_to_ds18b20_error(hal_status);
-			goto out;
-		}
-		else if ((hal_status = HAL_UART_Receive(ds18b20_uart_dev,
-				&read_buf[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
-		{
-			err_ret = hal_to_ds18b20_error(hal_status);
-			goto out;
-		}
+		goto out;
 	}
 
 	// Convert the sequence of OW bits back to actual byte data.
@@ -269,7 +318,6 @@ out:
 enum ds18b20_error ds18b20_read_temp(float *temperature_C)
 {
 	enum ds18b20_error err_ret = DS18B20_EOK;
-	HAL_StatusTypeDef hal_status;
 	uint8_t ow_read = OW_R;
 
 	if (!ds18b20_uart_dev)
@@ -281,101 +329,55 @@ enum ds18b20_error ds18b20_read_temp(float *temperature_C)
 		return DS18B20_EINVAL;
 	}
 
+	// Reset
 	if ((err_ret = ds18b20_ow_reset(ds18b20_uart_dev)) != DS18B20_EOK)
 	{
 		goto out;
 	}
 
 	// Issue skip ROM command
-	for (unsigned i=0; i<8; ++i)
+	hal_dma_enable_meminc(ds18b20_uart_dev->hdmatx);
+	if ((err_ret = ds18b20_transaction_dma(ds18b20_skip_rom_cmd, read_buf,
+			sizeof(ds18b20_skip_rom_cmd), DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
 	{
-		if ((hal_status = HAL_UART_Transmit(ds18b20_uart_dev,
-				(uint8_t *)&ds18b20_skip_rom_cmd[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
-		{
-			err_ret = hal_to_ds18b20_error(hal_status);
-			goto out;
-		}
-		else if ((hal_status = HAL_UART_Receive(ds18b20_uart_dev,
-				&read_buf[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
-		{
-			err_ret = hal_to_ds18b20_error(hal_status);
-			goto out;
-		}
+		goto out;
 	}
 
 	// Issue Convert T command
-	for (unsigned i=0; i<8; ++i)
+	if ((err_ret = ds18b20_transaction_dma(ds18b20_convert_temp_cmd, read_buf,
+			sizeof(ds18b20_convert_temp_cmd), DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
 	{
-		if ((hal_status = HAL_UART_Transmit(ds18b20_uart_dev,
-				(uint8_t *)&ds18b20_convert_temp_cmd[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
-		{
-			err_ret = hal_to_ds18b20_error(hal_status);
-			goto out;
-		}
-		else if ((hal_status = HAL_UART_Receive(ds18b20_uart_dev,
-				&read_buf[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
-		{
-			err_ret = hal_to_ds18b20_error(hal_status);
-			goto out;
-		}
+		goto out;
 	}
 
-	osDelay(750);
+	vTaskDelay(750);
 
+	// Reset
 	if ((err_ret = ds18b20_ow_reset(ds18b20_uart_dev)) != DS18B20_EOK)
 	{
 		goto out;
 	}
 
 	// Issue skip ROM command
-	for (unsigned i=0; i<8; ++i)
+	if ((err_ret = ds18b20_transaction_dma(ds18b20_skip_rom_cmd, read_buf,
+			sizeof(ds18b20_skip_rom_cmd), DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
 	{
-		if ((hal_status = HAL_UART_Transmit(ds18b20_uart_dev,
-				(uint8_t *)&ds18b20_skip_rom_cmd[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
-		{
-			err_ret = hal_to_ds18b20_error(hal_status);
-			goto out;
-		}
-		else if ((hal_status = HAL_UART_Receive(ds18b20_uart_dev,
-				&read_buf[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
-		{
-			err_ret = hal_to_ds18b20_error(hal_status);
-			goto out;
-		}
+		goto out;
 	}
 
 	// Issue read scratchpad command
-	for (unsigned i=0; i<8; ++i)
+	if ((err_ret = ds18b20_transaction_dma(ds18b20_read_scratchpad_cmd, read_buf,
+			sizeof(ds18b20_read_scratchpad_cmd), DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
 	{
-		if ((hal_status = HAL_UART_Transmit(ds18b20_uart_dev,
-				(uint8_t *)&ds18b20_read_scratchpad_cmd[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
-		{
-			err_ret = hal_to_ds18b20_error(hal_status);
-			goto out;
-		}
-		else if ((hal_status = HAL_UART_Receive(ds18b20_uart_dev,
-				&read_buf[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
-		{
-			err_ret = hal_to_ds18b20_error(hal_status);
-			goto out;
-		}
+		goto out;
 	}
 
 	// Read scratchpad: Receive 9 bytes of scratchpad data, one bit at a time
-	for (unsigned i=0; i<(DS18B20_SCRATCHPAD_LEN * 8); ++i)
+	hal_dma_disable_meminc(ds18b20_uart_dev->hdmatx);
+	if ((err_ret = ds18b20_transaction_dma(&ow_read, read_buf,
+			DS18B20_SCRATCHPAD_LEN * 8, DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
 	{
-		if ((hal_status = HAL_UART_Transmit(ds18b20_uart_dev,
-				(uint8_t *)&ow_read, 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
-		{
-			err_ret = hal_to_ds18b20_error(hal_status);
-			goto out;
-		}
-		else if ((hal_status = HAL_UART_Receive(ds18b20_uart_dev,
-				&read_buf[i], 1, DS18B20_TIMEOUT_MS)) != HAL_OK)
-		{
-			err_ret = hal_to_ds18b20_error(hal_status);
-			goto out;
-		}
+		goto out;
 	}
 
 	// Convert the sequence of OW bits back to actual byte data.
@@ -395,4 +397,27 @@ enum ds18b20_error ds18b20_read_temp(float *temperature_C)
 
 out:
 	return err_ret;
+}
+
+// ISR Handlers
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	BaseType_t higher_prio_task_woken = pdFALSE;
+
+	if (task_handle)
+	{
+		xTaskNotifyFromISR(task_handle, DMA_RX_COMPLETE, eSetBits, &higher_prio_task_woken);
+		portYIELD_FROM_ISR(higher_prio_task_woken);
+	}
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+	BaseType_t higher_prio_task_woken = pdFALSE;
+
+	if (task_handle)
+	{
+		xTaskNotifyFromISR(task_handle, DMA_TX_COMPLETE, eSetBits, &higher_prio_task_woken);
+		portYIELD_FROM_ISR(higher_prio_task_woken);
+	}
 }

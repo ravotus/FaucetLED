@@ -24,3 +24,9 @@ ensure that the temporary "main" breakpoint is removed. Sometimes it hangs aroun
 
 For more info, see:
 http://www.openstm32.org/forumthread2824
+
+USART DMA
+===
+For the HAL layer to clear the Tx state properly, the USART global interrupt must be enabled as well as both the 
+Tx and Rx interrupts. Furthermore, it appears that setting/clearing the MINC bit does not seem to take affect - perhaps 
+a re-initialization of the peripheral is needed?

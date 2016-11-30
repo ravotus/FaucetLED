@@ -28,5 +28,6 @@ enum ds18b20_error ds18b20_init(UART_HandleTypeDef *uart_dev, CRC_HandleTypeDef 
 enum ds18b20_error ds18b20_deinit(void);
 
 enum ds18b20_error ds18b20_read_rom(uint8_t *rom_buf, size_t buf_len);
+enum ds18b20_error ds18b20_read_temp(float *temperature_C);
 
 #endif //__DS18B20_H__
