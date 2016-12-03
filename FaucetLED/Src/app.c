@@ -1,3 +1,4 @@
+#include <string.h>
 #include "cmsis_os.h"
 
 #include "app.h"
@@ -23,6 +24,7 @@ void TemperatureTask(const void *arg)
 
 	while(1)
 	{
+		memset(ds18b20_rom_buf, 0, sizeof(ds18b20_rom_buf));
 		err = ds18b20_read_rom(ds18b20_rom_buf, DS18B20_READ_ROM_BUF_LEN);
 		err = ds18b20_read_temp(&temp_C);
 		(void)err;

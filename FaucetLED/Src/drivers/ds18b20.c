@@ -44,39 +44,49 @@ static CRC_HandleTypeDef *ds18b20_crc_dev = NULL;
 static uint8_t read_buf[OW_MAX_CMD_LEN_BYTES];
 static TaskHandle_t task_handle = NULL;
 
-// Each value below corresponds to the command, in bits, LSB first.
-static const uint8_t ds18b20_read_rom_cmd[] = {
-		OW_1, OW_1, OW_0, OW_0, OW_1, OW_1, OW_0, OW_0,
+#define ARRAY_LEN(a) (sizeof(a) / sizeof(*(a)))
+
+struct ds18b20_command
+{
+	uint8_t cmd;
+	uint8_t bytes[8];
 };
 
-static const uint8_t ds18b20_skip_rom_cmd[] = {
-		OW_0, OW_0, OW_1, OW_1, OW_0, OW_0, OW_1, OW_1,
-};
-
-static const uint8_t ds18b20_convert_temp_cmd[] = {
-		OW_0, OW_0, OW_1, OW_0, OW_0, OW_0, OW_1, OW_0,
-};
-
-static const uint8_t ds18b20_read_scratchpad_cmd[] = {
-		OW_0, OW_1, OW_1, OW_1, OW_1, OW_1, OW_0, OW_1,
+static const struct ds18b20_command ds18b20_commands[] = {
+		{
+				.cmd = DS18B20_READ_ROM_CMD,
+				.bytes = {OW_1, OW_1, OW_0, OW_0, OW_1, OW_1, OW_0, OW_0},
+		},
+		{
+				.cmd = DS18B20_SKIP_ROM_CMD,
+				.bytes = {OW_0, OW_0, OW_1, OW_1, OW_0, OW_0, OW_1, OW_1}
+		},
+		{
+				.cmd = DS18B20_CONVERT_TEMP_CMD,
+				.bytes = {OW_0, OW_0, OW_1, OW_0, OW_0, OW_0, OW_1, OW_0}
+		},
+		{
+				.cmd = DS18B20_READ_SCRATCHPAD_CMD,
+				.bytes = {OW_0, OW_1, OW_1, OW_1, OW_1, OW_1, OW_0, OW_1}
+		},
 };
 
 // ST's HAL doesn't provide a good way to enable or disable memory
 // auto-increment, so we provide our own.
 static inline void hal_dma_disable_meminc(DMA_HandleTypeDef *hdma)
 {
-	__HAL_DMA_DISABLE(hdma);
 	if (hdma)
 	{
+		__HAL_DMA_DISABLE(hdma);
 		hdma->Instance->CCR &= ~DMA_MINC_ENABLE;
 	}
 }
 
 static inline void hal_dma_enable_meminc(DMA_HandleTypeDef *hdma)
 {
-	__HAL_DMA_DISABLE(hdma);
 	if (hdma)
 	{
+		__HAL_DMA_DISABLE(hdma);
 		hdma->Instance->CCR |= DMA_MINC_ENABLE;
 	}
 }
@@ -88,17 +98,20 @@ static inline enum ds18b20_error hal_to_ds18b20_error(HAL_StatusTypeDef hal_stat
 
 // Convert an array of one-wire bits read to an array of bytes containing
 // the actual data. A bit is considered high if it is >= OW_BIT_HIGH_THRESH.
-static void ow_bits_to_bytes(uint8_t *bits_in, uint8_t *bytes_out, size_t len)
+static void ow_bits_to_bytes(uint8_t *bits_in, size_t len, uint8_t *bytes_out)
 {
-	for (unsigned i=0; i<len; ++i)
+	uint8_t bitval;
+	for (unsigned byte=0; byte<(len/8); ++byte)
 	{
-		if (bits_in[i] >= OW_BIT_HIGH_THRESH)
+		bytes_out[byte] = 0;
+
+		for (unsigned bit=0; bit<8; ++bit)
 		{
-			bytes_out[(unsigned)(i/8)] |= 1<<(i%8);
-		}
-		else
-		{
-			bytes_out[(unsigned)(i/8)] &= ~(1<<(i%8));
+			bitval = bits_in[(byte * 8) + bit];
+			if (bitval >= OW_BIT_HIGH_THRESH)
+			{
+				bytes_out[byte] |= 1<<bit;
+			}
 		}
 	}
 }
@@ -218,6 +231,64 @@ out:
 	return err_ret;
 }
 
+static enum ds18b20_error ds18b20_send_command(uint8_t command, uint32_t timeout)
+{
+	enum ds18b20_error err_ret = DS18B20_EOK;
+	const struct ds18b20_command *command_ptr = NULL;
+
+	for (unsigned i=0; i<ARRAY_LEN(ds18b20_commands); ++i)
+	{
+		if (command == ds18b20_commands[i].cmd)
+		{
+			command_ptr = &ds18b20_commands[i];
+			break;
+		}
+	}
+
+	if (!command_ptr)
+	{
+		err_ret = DS18B20_EINVAL;
+		goto out;
+	}
+
+	hal_dma_enable_meminc(ds18b20_uart_dev->hdmatx);
+	err_ret = ds18b20_transaction_dma(command_ptr->bytes, read_buf,
+			sizeof(command_ptr->bytes), timeout);
+
+out:
+	return err_ret;
+}
+
+static enum ds18b20_error ds18b20_read_bytes(uint8_t *buffer, uint32_t len, uint32_t timeout)
+{
+	enum ds18b20_error err_ret = DS18B20_EOK;
+	uint8_t ow_read = OW_R;
+
+	if ((8 * len) > sizeof(read_buf))
+	{
+		return DS18B20_EBIG;
+	}
+	// Cannot read into the internal read buffer because that's used as a temporary
+	// transaction area.
+	else if (buffer == read_buf)
+	{
+		return DS18B20_EINVAL;
+	}
+
+	hal_dma_disable_meminc(ds18b20_uart_dev->hdmatx);
+	if ((err_ret = ds18b20_transaction_dma(&ow_read, read_buf,
+			len * 8, DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
+	{
+		goto out;
+	}
+
+	// Convert the sequence of OW bits back to actual byte data.
+	ow_bits_to_bytes(read_buf, len * 8, buffer);
+
+out:
+	return err_ret;
+}
+
 enum ds18b20_error ds18b20_init(UART_HandleTypeDef *uart_dev,
 		CRC_HandleTypeDef *crc_dev)
 {
@@ -264,7 +335,6 @@ enum ds18b20_error ds18b20_deinit(void)
 enum ds18b20_error ds18b20_read_rom(uint8_t *rom_buf, size_t buf_len)
 {
 	enum ds18b20_error err_ret = DS18B20_EOK;
-	uint8_t ow_read = OW_R;
 
 	if (!ds18b20_uart_dev)
 	{
@@ -284,24 +354,16 @@ enum ds18b20_error ds18b20_read_rom(uint8_t *rom_buf, size_t buf_len)
 		goto out;
 	}
 
-	// Issue read ROM command
-	hal_dma_enable_meminc(ds18b20_uart_dev->hdmatx);
-	if ((err_ret = ds18b20_transaction_dma(ds18b20_read_rom_cmd, read_buf,
-			sizeof(ds18b20_read_rom_cmd), DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
+	if ((err_ret = ds18b20_send_command(DS18B20_READ_ROM_CMD, DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
 	{
 		goto out;
 	}
 
-	// Receive 8 bytes of ROM data, one bit at a time
-	hal_dma_disable_meminc(ds18b20_uart_dev->hdmatx);
-	if ((err_ret = ds18b20_transaction_dma(&ow_read, read_buf,
-			DS18B20_READ_ROM_BUF_LEN * 8, DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
+	if ((err_ret = ds18b20_read_bytes(rom_buf, DS18B20_READ_ROM_BUF_LEN,
+			DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
 	{
 		goto out;
 	}
-
-	// Convert the sequence of OW bits back to actual byte data.
-	ow_bits_to_bytes(read_buf, rom_buf,	DS18B20_READ_ROM_BUF_LEN * 8);
 
 	// The last byte of the ROM contains the CRC of the data
 	if (HAL_CRC_Calculate(ds18b20_crc_dev, (uint32_t *)rom_buf,
@@ -318,7 +380,7 @@ out:
 enum ds18b20_error ds18b20_read_temp(float *temperature_C)
 {
 	enum ds18b20_error err_ret = DS18B20_EOK;
-	uint8_t ow_read = OW_R;
+	uint8_t temp_scratchpad[DS18B20_SCRATCHPAD_LEN];
 
 	if (!ds18b20_uart_dev)
 	{
@@ -329,70 +391,58 @@ enum ds18b20_error ds18b20_read_temp(float *temperature_C)
 		return DS18B20_EINVAL;
 	}
 
-	// Reset
 	if ((err_ret = ds18b20_ow_reset(ds18b20_uart_dev)) != DS18B20_EOK)
 	{
 		goto out;
 	}
 
-	// Issue skip ROM command
-	hal_dma_enable_meminc(ds18b20_uart_dev->hdmatx);
-	if ((err_ret = ds18b20_transaction_dma(ds18b20_skip_rom_cmd, read_buf,
-			sizeof(ds18b20_skip_rom_cmd), DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
+	if ((err_ret = ds18b20_send_command(DS18B20_SKIP_ROM_CMD,
+			DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
 	{
 		goto out;
 	}
 
-	// Issue Convert T command
-	if ((err_ret = ds18b20_transaction_dma(ds18b20_convert_temp_cmd, read_buf,
-			sizeof(ds18b20_convert_temp_cmd), DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
+	if ((err_ret = ds18b20_send_command(DS18B20_CONVERT_TEMP_CMD,
+			DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
 	{
 		goto out;
 	}
 
 	vTaskDelay(750);
 
-	// Reset
 	if ((err_ret = ds18b20_ow_reset(ds18b20_uart_dev)) != DS18B20_EOK)
 	{
 		goto out;
 	}
 
-	// Issue skip ROM command
-	if ((err_ret = ds18b20_transaction_dma(ds18b20_skip_rom_cmd, read_buf,
-			sizeof(ds18b20_skip_rom_cmd), DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
+	if ((err_ret = ds18b20_send_command(DS18B20_SKIP_ROM_CMD,
+			DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
 	{
 		goto out;
 	}
 
-	// Issue read scratchpad command
-	if ((err_ret = ds18b20_transaction_dma(ds18b20_read_scratchpad_cmd, read_buf,
-			sizeof(ds18b20_read_scratchpad_cmd), DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
+	if ((err_ret = ds18b20_send_command(DS18B20_READ_SCRATCHPAD_CMD,
+			DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
 	{
 		goto out;
 	}
 
-	// Read scratchpad: Receive 9 bytes of scratchpad data, one bit at a time
-	hal_dma_disable_meminc(ds18b20_uart_dev->hdmatx);
-	if ((err_ret = ds18b20_transaction_dma(&ow_read, read_buf,
-			DS18B20_SCRATCHPAD_LEN * 8, DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
+	if ((err_ret = ds18b20_read_bytes(temp_scratchpad, DS18B20_SCRATCHPAD_LEN,
+			DS18B20_TIMEOUT_MS)) != DS18B20_EOK)
 	{
 		goto out;
 	}
 
-	// Convert the sequence of OW bits back to actual byte data.
-	uint8_t scratchpad_buf[DS18B20_SCRATCHPAD_LEN];
-	ow_bits_to_bytes(read_buf, scratchpad_buf,	DS18B20_SCRATCHPAD_LEN * 8);
-
-	// The last byte of the scratchpad contains the CRC of the data
-	if (HAL_CRC_Calculate(ds18b20_crc_dev, (uint32_t *)scratchpad_buf,
-			DS18B20_SCRATCHPAD_LEN - 1) != scratchpad_buf[DS18B20_SCRATCHPAD_CRC_BYTE])
+	// The last byte of the scratchpad contains the CRC
+	if (HAL_CRC_Calculate(ds18b20_crc_dev, (uint32_t *)temp_scratchpad,
+			DS18B20_SCRATCHPAD_LEN - 1) != temp_scratchpad[DS18B20_SCRATCHPAD_CRC_BYTE])
 	{
 		err_ret = DS18B20_CRC_FAIL;
 		goto out;
 	}
 
-	int16_t temperature = ((scratchpad_buf[1] << 8) & 0xff00) | (scratchpad_buf[0] & 0xff);
+
+	int16_t temperature = ((temp_scratchpad[1] << 8) & 0xff00) | (temp_scratchpad[0] & 0xff);
 	*temperature_C = temperature * DS18B20_TEMP_RAW12_TO_C;
 
 out:
