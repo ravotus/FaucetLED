@@ -1,10 +1,14 @@
 /**
   ******************************************************************************
-  * @file    stm32l4xx_it.h
-  * @brief   This file contains the headers of the interrupt handlers.
+  * @file    stm32l4xx_hal_opamp_ex.h
+  * @author  MCD Application Team
+  * @version V1.5.2
+  * @date    12-September-2016
+  * @brief   Header file of OPAMP HAL Extended module.
   ******************************************************************************
+  * @attention
   *
-  * COPYRIGHT(c) 2016 STMicroelectronics
+  * <h2><center>&copy; COPYRIGHT(c) 2016 STMicroelectronics</center></h2>
   *
   * Redistribution and use in source and binary forms, with or without modification,
   * are permitted provided that the following conditions are met:
@@ -32,37 +36,71 @@
   */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __STM32L4xx_IT_H
-#define __STM32L4xx_IT_H
+#ifndef __STM32L4xx_HAL_OPAMP_EX_H
+#define __STM32L4xx_HAL_OPAMP_EX_H
 
 #ifdef __cplusplus
  extern "C" {
-#endif 
+#endif
 
 /* Includes ------------------------------------------------------------------*/
+#include "stm32l4xx_hal_def.h"
+
+/** @addtogroup STM32L4xx_HAL_Driver
+  * @{
+  */
+
+/** @addtogroup OPAMPEx
+  * @{
+  */
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/
-/* Exported functions ------------------------------------------------------- */
+/* Exported functions --------------------------------------------------------*/
+/** @addtogroup OPAMPEx_Exported_Functions OPAMPEx Exported Functions
+  * @{
+  */
 
-void NMI_Handler(void);
-void HardFault_Handler(void);
-void MemManage_Handler(void);
-void BusFault_Handler(void);
-void UsageFault_Handler(void);
-void DebugMon_Handler(void);
-void SysTick_Handler(void);
-void DMA1_Channel1_IRQHandler(void);
-void DMA1_Channel4_IRQHandler(void);
-void DMA1_Channel5_IRQHandler(void);
-void ADC1_IRQHandler(void);
-void USART1_IRQHandler(void);
-void TIM7_IRQHandler(void);
+#if defined (STM32L471xx) || defined (STM32L475xx) || defined (STM32L476xx) || defined (STM32L485xx) || defined (STM32L486xx)
+
+/* I/O operation functions  *****************************************************/
+/** @addtogroup OPAMPEx_Exported_Functions_Group1 Extended Input and Output operation functions
+  * @{
+  */
+
+HAL_StatusTypeDef HAL_OPAMPEx_SelfCalibrateAll(OPAMP_HandleTypeDef *hopamp1, OPAMP_HandleTypeDef *hopamp2); 
+
+/**
+  * @}
+  */
+#endif
+
+/* Peripheral Control functions  ************************************************/
+/** @addtogroup OPAMPEx_Exported_Functions_Group2
+  * @{
+  */
+HAL_StatusTypeDef HAL_OPAMPEx_Unlock(OPAMP_HandleTypeDef *hopamp); 
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __STM32L4xx_IT_H */
+
+#endif /* __STM32L4xx_HAL_OPAMP_EX_H */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

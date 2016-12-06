@@ -53,18 +53,12 @@
 #define TIM1_PERIOD 1000
 #define TIM1_CLK_DIV 8
 
-#define USR_OPAMP1_VINM_Pin GPIO_PIN_1
-#define USR_OPAMP1_VINM_GPIO_Port GPIOA
 #define USR_USART2_TX_Pin GPIO_PIN_2
 #define USR_USART2_TX_GPIO_Port GPIOA
-#define USR_OPAMP1_VOUT_Pin GPIO_PIN_3
-#define USR_OPAMP1_VOUT_GPIO_Port GPIOA
 #define USR_USB_DM_Pin GPIO_PIN_11
 #define USR_USB_DM_GPIO_Port GPIOA
 #define USR_USB_DP_Pin GPIO_PIN_12
 #define USR_USB_DP_GPIO_Port GPIOA
-#define USR_USART2_RX_Pin GPIO_PIN_15
-#define USR_USART2_RX_GPIO_Port GPIOA
 /* USER CODE BEGIN Private defines */
 extern void Error_Handler(void);
 /* USER CODE END Private defines */

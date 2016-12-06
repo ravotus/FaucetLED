@@ -3,9 +3,14 @@
 
 #include "stm32l4xx_hal.h"
 
-#define DS18B20_UART	huart1
-#define CRC_DEV			hcrc
+#define NUM_ADC_SAMPLES		128
 
+#define ADC_DEV				hadc1
+#define DS18B20_UART		huart1
+#define CRC_DEV				hcrc
+
+
+extern ADC_HandleTypeDef ADC_DEV;
 extern CRC_HandleTypeDef CRC_DEV;
 extern UART_HandleTypeDef DS18B20_UART;
 

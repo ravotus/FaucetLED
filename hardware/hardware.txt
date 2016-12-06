@@ -30,6 +30,8 @@ ADC
 ===
 Be sure to calibrate ADC on powerup. Software can save the calibration value and restore it each time.
 Is being very picky - seems to always be one conversion short in interrupt or polling mode, unless I slow the ADC way down (/128 clk).
+Per datasheet, Vrefint needs a sampele time of 4us minimum.
+If using oversampling on both regular and injected channels, the oversampling ratio must be the same! (or reconfigured before starting each conversion)
 
 Piezo amplifier circuit
 =======================

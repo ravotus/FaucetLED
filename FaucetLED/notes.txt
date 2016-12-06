@@ -26,7 +26,19 @@ For more info, see:
 http://www.openstm32.org/forumthread2824
 
 USART DMA
-===
+=========
 For the HAL layer to clear the Tx state properly, the USART global interrupt must be enabled as well as both the 
 Tx and Rx interrupts. Furthermore, it appears that setting/clearing the MINC bit does not seem to take affect - perhaps 
 a re-initialization of the peripheral is needed?
+
+ADC Data
+========
+Need to ensure proper sampling time. Currently, using relatively slow sample rate:
+Fadc = 80MHz / 256 = 312.5kHz. tsample_opamp = 1/312.5kHz * (12.5cycle + 47.5cycle) = 192uS => Fsample = 5.208kHz
+
+To convert to float, the following operations need to happen:
+1. Shift data left by 3 (multiply by 8) because arm_q15_to_float divides by 32768 to convert away from Q15.
+2. Use arm_q15_to_float to conver the data to floating-point.
+3. Multiply the resulting data (which will be in the range [0, 1] by the vdda_value to obtain the final value with arm_scale_f32).
+The first step can be omitted if the data is left-aligned with a sign bit. I accomplished this by setting the data left-aligned
+with an offset of 0, which per the RM means there will be 1 sign bit followed by 12 data bits, exactly the format from step 1.
