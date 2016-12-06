@@ -30,3 +30,22 @@ Consider using DAC to generate Vcc/2 reference
 
 Need to look at increasing Rfb to increase SNR (see page 3 of TI signal conditioning full pdf)
 Cheapest SMD: 470M, 150M, 270M, 200M, 500M, 250M
+
+Testing 12/4/16
+===============
+Tested using Cfb = 100pF, Rfb = 100Mohm
+Software: ~5.3kHz samplerate (80MHz clk/256, 47.5 cycle tsample). Averaging samples worked poorly, but then I realized
+that an average should completely cancel out the signal since it's differential. Switched to calculating the standard
+deviation instead. This seems to work a lot better. Considering going to calculating min/max instead relative to mean.
+Very sensitive, but also to random shocks to sink. 
+Changing to the sensor with mass increased sensitivity to shocks, but decreased to vibration.
+Thinking cutoff frequency (159Hz) of Cfb and Rfb could be causing issue - vibrations seem to be around 100Hz with
+a harmonic or other vibration closer to 1000Hz. If I want to keep trying to detect vibration, maybe tweak Rfb or Cfb
+for a higher cutoff frequency (1-2.5kHz?)
+
+Notes 12/5/16
+=============
+I discovered that the Vcc/2 reference was still a simple voltage divider rather than a buffered reference. I changed
+the circuit to be buffered through the STM32 opamp with a gain of 1. The overall working of the charge amplifier circuit
+improved immensely - now the scope actually shows a big difference between the water running and being off. Testing
+showed that larger gain was needed for good results, ie Cfb=10pF and Rfb=100M.

@@ -1,0 +1,3 @@
+Rfb = 100M
+Cfb = 100pF
+1/2 vcc buffered
