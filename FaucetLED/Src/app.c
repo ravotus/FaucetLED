@@ -112,13 +112,16 @@ void AdcReaderTask(const void *arg)
 		arm_scale_f32((float *)adc_data_f, vdda_value,
 				      (float *)adc_data_f, NUM_ADC_SAMPLES);
 
+		// Calculate the standard deviation of the samples, which it turns out
+		// is mathematically the same as calculating the RMS of the signal with
+		// the DC component (ie, the mean) removed. This gives a good
+		// approximation of the amplitude of the differential signal.
 		float stddev_v;
 		arm_std_f32((float *)adc_data_f, NUM_ADC_SAMPLES, &stddev_v);
 
-		// Relatively arbitrary levels, just for testing.
-		if (stddev_v > 0.1)
+		if (stddev_v > ADC_TRIGGER_STDEV_V)
 		{
-			if (num_shocks_last < 5)
+			if (num_shocks_last < NUM_SAMPLES_FOR_TRIGGER)
 			{
 				num_shocks_last++;
 			}
