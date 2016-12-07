@@ -1,5 +1,6 @@
 #include <limits.h>
 #include <math.h>
+#include <stdbool.h>
 #include <string.h>
 #include "arm_math.h"
 #include "arm_const_structs.h"
@@ -53,14 +54,13 @@ void AdcReaderTask(const void *arg)
 	uint32_t task_notify_val;
 	uint32_t vrefint_value;
 	float vdda_value;
+	uint8_t num_shocks_last = 0;
+	bool led_on = false;
 
-	struct led_color red = {.red = 128, .green = 0, .blue = 0};
 	struct led_color blue = {.red = 0, .green = 0, .blue = 128};
-	struct led_color green = {.red = 0, .green = 128, .blue = 0};
 	struct led_color black = {.red = 0, .green = 0, .blue = 0};
 
 	adc_task_handle = xTaskGetCurrentTaskHandle();
-	led_init(1000);
 
 	if (HAL_ADCEx_Calibration_Start(&ADC_DEV, ADC_SINGLE_ENDED) != HAL_OK)
 	{
@@ -116,21 +116,29 @@ void AdcReaderTask(const void *arg)
 		arm_std_f32((float *)adc_data_f, NUM_ADC_SAMPLES, &stddev_v);
 
 		// Relatively arbitrary levels, just for testing.
-		if (stddev_v > 0.2)
+		if (stddev_v > 0.1)
 		{
-			led_set(&blue);
-		}
-		else if (stddev_v > 0.125)
-		{
-			led_set(&green);
-		}
-		else if (stddev_v > 0.05)
-		{
-			led_set (&red);
+			if (num_shocks_last < 5)
+			{
+				num_shocks_last++;
+			}
+			else if (!led_on)
+			{
+				led_set(&blue);
+				led_on = true;
+			}
 		}
 		else
 		{
-			led_set(&black);
+			if (num_shocks_last > 0)
+			{
+				num_shocks_last--;
+			}
+			else if (led_on)
+			{
+				led_set(&black);
+				led_on = false;
+			}
 		}
 
 		osDelayUntil(&last_wake_time, 100);
@@ -142,7 +150,6 @@ static uint8_t ds18b20_rom_buf[DS18B20_READ_ROM_BUF_LEN];
 
 void TemperatureTask(const void *arg)
 {
-	uint32_t last_wake_time;
 	float temp_C;
 	volatile enum ds18b20_error err;
 
@@ -151,14 +158,12 @@ void TemperatureTask(const void *arg)
 		Error_Handler();
 	}
 
-	last_wake_time = osKernelSysTick();
-
 	while(1)
 	{
 		memset(ds18b20_rom_buf, 0, sizeof(ds18b20_rom_buf));
 		err = ds18b20_read_rom(ds18b20_rom_buf, DS18B20_READ_ROM_BUF_LEN);
 		err = ds18b20_read_temp(&temp_C);
 		(void)err;
-		osDelayUntil(&last_wake_time, 1000);
+		osDelay(1000);
 	}
 }
