@@ -29,7 +29,7 @@ enum led_error led_deinit(void)
 	return LED_EOK;
 }
 
-enum led_error led_set(struct led_color *color)
+enum led_error led_set(const struct led_color *color)
 {
 	TIM_OC_InitTypeDef sConfigOC;
 	HAL_StatusTypeDef hal_status;

@@ -19,6 +19,8 @@
 #define NOTIFY_ADC_COMPLETE			0x01
 #define NOTIFY_ADC_INJ_COMPLETE		0x02
 
+const struct led_color black = {.red = 0, .green = 0, .blue = 0};
+
 static TaskHandle_t adc_task_handle = NULL;
 
 volatile static int16_t adc_data[NUM_ADC_SAMPLES];
@@ -48,6 +50,32 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef* hadc)
 	}
 }
 
+volatile static float shared_temp_C = 0;
+
+static void compute_led_color(float temp_C, struct led_color *output)
+{
+	if (!output)
+	{
+		return;
+	}
+
+	memset(output, 0, sizeof(*output));
+	if (temp_C <= 21.0f)
+	{
+		// Cold
+		output->blue = (uint8_t)(temp_C * -12.095238095238095f + 255.0f);
+	}
+	else if (temp_C >= 26.0f)
+	{
+		// Hot
+		output->red = (uint8_t)(temp_C * 7.470588235294118f - 193.23529411764707);
+	}
+	else
+	{
+		// Lukewarm
+	}
+}
+
 void AdcReaderTask(const void *arg)
 {
 	uint32_t last_wake_time;
@@ -55,10 +83,8 @@ void AdcReaderTask(const void *arg)
 	uint32_t vrefint_value;
 	float vdda_value;
 	uint8_t num_shocks_last = 0;
-	bool led_on = false;
 
-	struct led_color blue = {.red = 0, .green = 0, .blue = 128};
-	struct led_color black = {.red = 0, .green = 0, .blue = 0};
+	//struct led_color blue = {.red = 0, .green = 0, .blue = 128};
 
 	adc_task_handle = xTaskGetCurrentTaskHandle();
 
@@ -125,10 +151,11 @@ void AdcReaderTask(const void *arg)
 			{
 				num_shocks_last++;
 			}
-			else if (!led_on)
+			else
 			{
-				led_set(&blue);
-				led_on = true;
+				struct led_color color;
+				compute_led_color(shared_temp_C, &color);
+				led_set(&color);
 			}
 		}
 		else
@@ -137,10 +164,9 @@ void AdcReaderTask(const void *arg)
 			{
 				num_shocks_last--;
 			}
-			else if (led_on)
+			else
 			{
 				led_set(&black);
-				led_on = false;
 			}
 		}
 
@@ -148,13 +174,11 @@ void AdcReaderTask(const void *arg)
 	}
 }
 
-
-static uint8_t ds18b20_rom_buf[DS18B20_READ_ROM_BUF_LEN];
-
 void TemperatureTask(const void *arg)
 {
-	float temp_C;
-	volatile enum ds18b20_error err;
+	uint32_t last_wake_time;
+
+	last_wake_time = osKernelSysTick();
 
 	if (DS18B20_EOK != ds18b20_init(&DS18B20_UART, &CRC_DEV))
 	{
@@ -163,10 +187,11 @@ void TemperatureTask(const void *arg)
 
 	while(1)
 	{
-		memset(ds18b20_rom_buf, 0, sizeof(ds18b20_rom_buf));
-		err = ds18b20_read_rom(ds18b20_rom_buf, DS18B20_READ_ROM_BUF_LEN);
-		err = ds18b20_read_temp(&temp_C);
-		(void)err;
-		osDelay(1000);
+		if (ds18b20_read_temp(&shared_temp_C) == DS18B20_EOK)
+		{
+			// TODO: Send data via queue or something
+		}
+
+		osDelayUntil(&last_wake_time, 1000);
 	}
 }

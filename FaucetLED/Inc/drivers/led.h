@@ -27,6 +27,6 @@ struct led_color
 
 enum led_error led_init(uint32_t period);
 enum led_error led_deinit(void);
-enum led_error led_set(struct led_color *color);
+enum led_error led_set(const struct led_color *color);
 
 #endif //__LED_DRIVER_H__

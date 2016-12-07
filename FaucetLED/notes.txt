@@ -42,3 +42,15 @@ To convert to float, the following operations need to happen:
 3. Multiply the resulting data (which will be in the range [0, 1] by the vdda_value to obtain the final value with arm_scale_f32).
 The first step can be omitted if the data is left-aligned with a sign bit. I accomplished this by setting the data left-aligned
 with an offset of 0, which per the RM means there will be 1 sign bit followed by 12 data bits, exactly the format from step 1.
+
+LED Color Calculations
+======================
+Hot:
+(26, 1) -> (60, 255)
+m = (255-1)/(60-26) = 7.470588235294118
+b = 1 - m * 26 = -193.23529411764707
+
+Cold:
+(21, 1) -> (0, 255)
+m = (255-1)/(0-21) = -12.095238095238095
+b = 1 - m * 21 = 255.0
