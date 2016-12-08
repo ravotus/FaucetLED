@@ -49,3 +49,9 @@ I discovered that the Vcc/2 reference was still a simple voltage divider rather 
 the circuit to be buffered through the STM32 opamp with a gain of 1. The overall working of the charge amplifier circuit
 improved immensely - now the scope actually shows a big difference between the water running and being off. Testing
 showed that larger gain was needed for good results, ie Cfb=10pF and Rfb=100M.
+
+Notes 12/7/16
+=============
+I noticed with longer cable on USB power, it's possible for the amplifier to go into oscillation at 60Hz. I tried increasing
+Rfb all the way up to 400Mohm with no improvement to speak of. The circuit works well enough, but as an improvement I may
+try Maxim's triple-amplifier differential topology rather than the single-opamp differential one I've been using from TI.

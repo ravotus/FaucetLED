@@ -13,7 +13,7 @@ Rblue = 22ohm, Iblue = 19.64mA
 
 Rred = 78ohm (10+68), Ired = 18.49mA
 Rgreen = 12.2ohm (15||68), Igreen = 18.28mA
-Rblue = 25ohm (15+25), Iblue = 18.60mA
+Rblue = 25ohm (15+10), Iblue = 18.60mA
 
 Pin notes
 =========
