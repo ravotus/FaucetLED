@@ -61,12 +61,7 @@ OPAMP_HandleTypeDef hopamp1;
 
 TIM_HandleTypeDef htim1;
 
-UART_HandleTypeDef huart1;
-DMA_HandleTypeDef hdma_usart1_rx;
-DMA_HandleTypeDef hdma_usart1_tx;
-
 osThreadId LedToggleHandle;
-osThreadId TemperatureHandle;
 osThreadId AdcReaderHandle;
 
 /* USER CODE BEGIN PV */
@@ -80,11 +75,9 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_TIM1_Init(void);
-static void MX_USART1_UART_Init(void);
 static void MX_CRC_Init(void);
 static void MX_OPAMP1_Init(void);
 void LedToggleTask(void const * argument);
-extern void TemperatureTask(void const * argument);
 extern void AdcReaderTask(void const * argument);
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
@@ -119,7 +112,6 @@ int main(void)
   MX_DMA_Init();
   MX_ADC1_Init();
   MX_TIM1_Init();
-  MX_USART1_UART_Init();
   MX_CRC_Init();
   MX_OPAMP1_Init();
 
@@ -149,10 +141,6 @@ int main(void)
   /* definition and creation of LedToggle */
   osThreadDef(LedToggle, LedToggleTask, osPriorityNormal, 0, 128);
   LedToggleHandle = osThreadCreate(osThread(LedToggle), NULL);
-
-  /* definition and creation of Temperature */
-  osThreadDef(Temperature, TemperatureTask, osPriorityNormal, 0, 128);
-  TemperatureHandle = osThreadCreate(osThread(Temperature), NULL);
 
   /* definition and creation of AdcReader */
   osThreadDef(AdcReader, AdcReaderTask, osPriorityNormal, 0, 128);
@@ -226,8 +214,7 @@ void SystemClock_Config(void)
     Error_Handler();
   }
 
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_ADC;
-  PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
   PeriphClkInit.AdcClockSelection = RCC_ADCCLKSOURCE_SYSCLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
@@ -267,7 +254,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_LEFT;
   hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
-  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc1.Init.EOCSelection = ADC_EOC_SEQ_CONV;
   hadc1.Init.LowPowerAutoWait = DISABLE;
   hadc1.Init.ContinuousConvMode = ENABLE;
   hadc1.Init.NbrOfConversion = 1;
@@ -452,27 +439,6 @@ static void MX_TIM1_Init(void)
 
 }
 
-/* USART1 init function */
-static void MX_USART1_UART_Init(void)
-{
-
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 9600;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_HalfDuplex_Init(&huart1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-}
-
 /** 
   * Enable DMA controller clock
   */
@@ -485,12 +451,6 @@ static void MX_DMA_Init(void)
   /* DMA1_Channel1_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
-  /* DMA1_Channel4_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
-  /* DMA1_Channel5_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
 
 }
 
@@ -514,18 +474,18 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
 
-  /*Configure GPIO pins : PA1 USR_USART2_TX_Pin PA5 PA6 
+  /*Configure GPIO pins : PA1 PA2 PA5 PA6 
                            PA7 USR_USB_DM_Pin USR_USB_DP_Pin PA15 */
-  GPIO_InitStruct.Pin = GPIO_PIN_1|USR_USART2_TX_Pin|GPIO_PIN_5|GPIO_PIN_6 
+  GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_5|GPIO_PIN_6 
                           |GPIO_PIN_7|USR_USB_DM_Pin|USR_USB_DP_Pin|GPIO_PIN_15;
   GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PB0 PB3 PB4 PB5 
-                           PB7 */
+                           PB6 PB7 */
   GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5 
-                          |GPIO_PIN_7;
+                          |GPIO_PIN_6|GPIO_PIN_7;
   GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
@@ -550,7 +510,7 @@ void LedToggleTask(void const * argument)
 
 	for(;;)
 	{
-		BSP_LED_Toggle(LED3);
+		//BSP_LED_Toggle(LED3);
 		osDelayUntil(&last_wake_time, 500);
 	}
   /* USER CODE END 5 */ 

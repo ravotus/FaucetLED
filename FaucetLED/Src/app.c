@@ -7,7 +7,6 @@
 #include "cmsis_os.h"
 
 #include "app.h"
-#include "drivers/ds18b20.h"
 #include "drivers/led.h"
 #include "main.h"
 
@@ -187,29 +186,6 @@ void AdcReaderTask(const void *arg)
 				led_set(&black);
 			}
 		}
-
 		osDelayUntil(&last_wake_time, 100);
-	}
-}
-
-void TemperatureTask(const void *arg)
-{
-	uint32_t last_wake_time;
-
-	last_wake_time = osKernelSysTick();
-
-	if (DS18B20_EOK != ds18b20_init(&DS18B20_UART, &CRC_DEV))
-	{
-		Error_Handler();
-	}
-
-	while(1)
-	{
-		if (ds18b20_read_temp(&shared_temp_C) == DS18B20_EOK)
-		{
-			// TODO: Send data via queue or something
-		}
-
-		osDelayUntil(&last_wake_time, 1000);
 	}
 }

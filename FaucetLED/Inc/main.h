@@ -53,8 +53,6 @@
 #define TIM1_PERIOD 1000
 #define TIM1_CLK_DIV 8
 
-#define USR_USART2_TX_Pin GPIO_PIN_2
-#define USR_USART2_TX_GPIO_Port GPIOA
 #define USR_USB_DM_Pin GPIO_PIN_11
 #define USR_USB_DM_GPIO_Port GPIOA
 #define USR_USB_DP_Pin GPIO_PIN_12

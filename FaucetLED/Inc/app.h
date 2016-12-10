@@ -15,11 +15,9 @@
 #define THERMISTOR_B				3984
 
 #define ADC_DEV				hadc1
-#define DS18B20_UART		huart1
 #define CRC_DEV				hcrc
 
 extern ADC_HandleTypeDef ADC_DEV;
 extern CRC_HandleTypeDef CRC_DEV;
-extern UART_HandleTypeDef DS18B20_UART;
 
 #endif /* __APP_H__ */
