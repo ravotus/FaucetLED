@@ -53,5 +53,11 @@ showed that larger gain was needed for good results, ie Cfb=10pF and Rfb=100M.
 Notes 12/7/16
 =============
 I noticed with longer cable on USB power, it's possible for the amplifier to go into oscillation at 60Hz. I tried increasing
-Rfb all the way up to 400Mohm with no improvement to speak of. The circuit works well enough, but as an improvement I may
-try Maxim's triple-amplifier differential topology rather than the single-opamp differential one I've been using from TI.
+Rfb all the way up to 400Mohm with no improvement to speak of. The circuit works well enough, but as an improvement.
+I also breadboarded maxim's application circuit tonight. The gain was ridiculously high. At first, I had R1=R2=1M and C3=0.05uF,
+changing these back to the standard values did not help. I then dialed back R9 to 10k in hopes of lowering the gain enough,
+but it was still too high (much higher than the previous circuit). Then I increased C1=C2=100pF. This helped, but it was still
+too high. Note, for all of this I used R3=R4=100M because I didn't want to bother with lowering those values. Finally I
+increased C1 and C2 to 1000pF, which brought the gain in line with what I had previously seen on the other single amp
+circuit. There is definitely better 60Hz rejection with this topology, but it's not perfect. Furthermore, if I went this
+route I wouldn't be able to use the single opamp with SHDN pin like I was hoping for low-power support.
