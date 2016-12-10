@@ -26,7 +26,7 @@ static TaskHandle_t adc_task_handle = NULL;
 volatile static int16_t adc_data[NUM_ADC_SAMPLES];
 static float adc_data_f[NUM_ADC_SAMPLES];
 
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
 	BaseType_t higher_prio_task_woken = pdFALSE;
 
@@ -38,19 +38,24 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 	}
 }
 
-void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef* hadc)
+void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
 	BaseType_t higher_prio_task_woken = pdFALSE;
 
 	if (adc_task_handle)
 	{
-		xTaskNotifyFromISR(adc_task_handle, NOTIFY_ADC_INJ_COMPLETE,
-				eSetBits, &higher_prio_task_woken);
+		// We only want to set the complete bit once the entire sequence of injected
+		// conversions is finished. If the "End of Conversion Selection" happens to be
+		// set to End of Single Conversion (or both), we will get an interrupt for every
+		// injected channel that completes.
+		if ( __HAL_ADC_GET_FLAG(hadc, ADC_FLAG_JEOS))
+		{
+			xTaskNotifyFromISR(adc_task_handle, NOTIFY_ADC_INJ_COMPLETE,
+					eSetBits, &higher_prio_task_woken);
+		}
 		portYIELD_FROM_ISR(higher_prio_task_woken);
 	}
 }
-
-volatile static float shared_temp_C = 0;
 
 static void compute_led_color(float temp_C, struct led_color *output)
 {
@@ -78,14 +83,8 @@ static void compute_led_color(float temp_C, struct led_color *output)
 
 void AdcReaderTask(const void *arg)
 {
-	uint32_t last_wake_time;
 	uint32_t task_notify_val;
-	uint16_t vrefint_value;
-	uint16_t exttemp_value;
-	float vdda_V;
-	float temp_input_V;
-	float thermistor_R;
-	float temperature_C;
+	uint32_t last_wake_time;
 	uint8_t num_shocks_last = 0;
 
 	adc_task_handle = xTaskGetCurrentTaskHandle();
@@ -108,29 +107,36 @@ void AdcReaderTask(const void *arg)
 
 		if (xTaskNotifyWait(0, ULONG_MAX, &task_notify_val, 90))
 		{
-			if (task_notify_val != NOTIFY_ADC_INJ_COMPLETE)
+			if (! (task_notify_val & NOTIFY_ADC_INJ_COMPLETE))
 			{
 				Error_Handler();
 			}
 		}
+		else
+		{
+			// Timeout
+			Error_Handler();
+		}
 
 		// Because oversampling is enabled for injected channels, the left align bit is ignored,
 		// so this data is right aligned
-		vrefint_value = HAL_ADCEx_InjectedGetValue(&ADC_DEV, ADC_INJ_CHANNEL_VREF);
-		exttemp_value = HAL_ADCEx_InjectedGetValue(&ADC_DEV, ADC_INJ_CHANNEL_EXTTEMP);
+		uint16_t vrefint_value = HAL_ADCEx_InjectedGetValue(&ADC_DEV, ADC_INJ_CHANNEL_VREF);
+		uint16_t exttemp_value = HAL_ADCEx_InjectedGetValue(&ADC_DEV, ADC_INJ_CHANNEL_EXTTEMP);
+
+		(void)HAL_ADC_Stop_IT(&ADC_DEV);
 
 		// Calculate the value of the internal reference.
-		vdda_V = 3.0 * (*VREFINT_CAL) / vrefint_value;
+		float vdda_V = 3.0 * (*VREFINT_CAL) / vrefint_value;
 
 		// Calculation of input voltage
-		temp_input_V = exttemp_value * vdda_V / 4096.0f;
+		float temp_input_V = exttemp_value * vdda_V / 4096.0f;
 
 		// Calculate thermistor R = Vdda * 10k / Vin - 10k
-		thermistor_R = vdda_V * THERMISTOR_R_DIVIDER / temp_input_V - THERMISTOR_R_DIVIDER;
+		float thermistor_R = vdda_V * THERMISTOR_R_DIVIDER / temp_input_V - THERMISTOR_R_DIVIDER;
 
 		// Finally use Steinhart-Hart approximation
 		// R_Kelvin = 1/(1/T0 + 1/B*ln(Rtherm/R_T0)), B = 3984, T0 = 25C
-		temperature_C = 1/(1/298.15f + (1.0f/THERMISTOR_B)*logf(thermistor_R / THERMISTOR_T0)) - 273.15f;
+		float temperature_C = 1/(1/298.15f + (1.0f/THERMISTOR_B)*logf(thermistor_R / THERMISTOR_T0)) - 273.15f;
 
 		// Begin reading the shock sensor.
 		if (HAL_ADC_Start_DMA(&ADC_DEV, (uint32_t *)adc_data, NUM_ADC_SAMPLES) != HAL_OK)
@@ -140,11 +146,22 @@ void AdcReaderTask(const void *arg)
 
 		if (xTaskNotifyWait(0, ULONG_MAX, &task_notify_val, 90))
 		{
-			if (task_notify_val != NOTIFY_ADC_COMPLETE)
+			if (! (task_notify_val & NOTIFY_ADC_COMPLETE))
 			{
 				Error_Handler();
 			}
 		}
+		else
+		{
+			// Timeout
+			Error_Handler();
+		}
+
+		// For safety...
+		(void)HAL_ADC_Stop_DMA(&ADC_DEV);
+		// The hal incorrectly sets this bit if you call HAL_ADC_Stop_DMA() while a
+		// conversion is not in progress. Lovely...
+		CLEAR_BIT(ADC_DEV.State, HAL_ADC_STATE_ERROR_INTERNAL);
 
 		// Avoid having to shift all the data left by 3 here by configuring the
 		// ADC in left-aligned data mode with offset enabled but set to 0.
