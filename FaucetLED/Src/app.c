@@ -20,6 +20,7 @@
 #define NOTIFY_ADC_INJ_COMPLETE		0x02
 
 const struct led_color black = {.red = 0, .green = 0, .blue = 0};
+const struct led_color blue = {.red = 0, .green = 0, .blue = 255};
 
 static TaskHandle_t adc_task_handle = NULL;
 
@@ -80,11 +81,13 @@ void AdcReaderTask(const void *arg)
 {
 	uint32_t last_wake_time;
 	uint32_t task_notify_val;
-	uint32_t vrefint_value;
-	float vdda_value;
+	uint16_t vrefint_value;
+	uint16_t exttemp_value;
+	float vdda_V;
+	float temp_input_V;
+	float thermistor_R;
+	float temperature_C;
 	uint8_t num_shocks_last = 0;
-
-	//struct led_color blue = {.red = 0, .green = 0, .blue = 128};
 
 	adc_task_handle = xTaskGetCurrentTaskHandle();
 
@@ -93,29 +96,44 @@ void AdcReaderTask(const void *arg)
 		Error_Handler();
 	}
 
-	if (HAL_ADCEx_InjectedStart_IT(&ADC_DEV) != HAL_OK)
-	{
-		Error_Handler();
-	}
-
-	if (xTaskNotifyWait(0, ULONG_MAX, &task_notify_val, 100))
-	{
-		if (task_notify_val != NOTIFY_ADC_INJ_COMPLETE)
-		{
-			Error_Handler();
-		}
-	}
-
-	// Since all ADC data is left-aligned, we need to convert it back to a right-aligned integer.
-	vrefint_value = (HAL_ADCEx_InjectedGetValue(&ADC_DEV, ADC_INJECTED_RANK_1) >> 4) & 0x0fff;
-
-	// Calculate the value of the internal reference.
-	vdda_value = 3.0 * (*VREFINT_CAL) / vrefint_value;
-
 	last_wake_time = osKernelSysTick();
 
 	while (1)
 	{
+		// First read the injected group which includes the internal voltage reference
+		// and the external temperature sensor (thermistor).
+		if (HAL_ADCEx_InjectedStart_IT(&ADC_DEV) != HAL_OK)
+		{
+			Error_Handler();
+		}
+
+		if (xTaskNotifyWait(0, ULONG_MAX, &task_notify_val, 90))
+		{
+			if (task_notify_val != NOTIFY_ADC_INJ_COMPLETE)
+			{
+				Error_Handler();
+			}
+		}
+
+		// Because oversampling is enabled for injected channels, the left align bit is ignored,
+		// so this data is right aligned
+		vrefint_value = HAL_ADCEx_InjectedGetValue(&ADC_DEV, ADC_INJ_CHANNEL_VREF);
+		exttemp_value = HAL_ADCEx_InjectedGetValue(&ADC_DEV, ADC_INJ_CHANNEL_EXTTEMP);
+
+		// Calculate the value of the internal reference.
+		vdda_V = 3.0 * (*VREFINT_CAL) / vrefint_value;
+
+		// Calculation of input voltage
+		temp_input_V = exttemp_value * vdda_V / 4096.0f;
+
+		// Calculate thermistor R = Vdda * 10k / Vin - 10k
+		thermistor_R = vdda_V * THERMISTOR_R_DIVIDER / temp_input_V - THERMISTOR_R_DIVIDER;
+
+		// Finally use Steinhart-Hart approximation
+		// R_Kelvin = 1/(1/T0 + 1/B*ln(Rtherm/R_T0)), B = 3984, T0 = 25C
+		temperature_C = 1/(1/298.15f + (1.0f/THERMISTOR_B)*logf(thermistor_R / THERMISTOR_T0)) - 273.15f;
+
+		// Begin reading the shock sensor.
 		if (HAL_ADC_Start_DMA(&ADC_DEV, (uint32_t *)adc_data, NUM_ADC_SAMPLES) != HAL_OK)
 		{
 			Error_Handler();
@@ -135,17 +153,17 @@ void AdcReaderTask(const void *arg)
 		// for 13 bits total. arm_q15_to_float() divides by 32768 (right shift 3).
 		arm_q15_to_float((int16_t *)adc_data, (float *)adc_data_f,
 				         NUM_ADC_SAMPLES);
-		arm_scale_f32((float *)adc_data_f, vdda_value,
+		arm_scale_f32((float *)adc_data_f, vdda_V,
 				      (float *)adc_data_f, NUM_ADC_SAMPLES);
 
 		// Calculate the standard deviation of the samples, which it turns out
 		// is mathematically the same as calculating the RMS of the signal with
 		// the DC component (ie, the mean) removed. This gives a good
 		// approximation of the amplitude of the differential signal.
-		float stddev_v;
-		arm_std_f32((float *)adc_data_f, NUM_ADC_SAMPLES, &stddev_v);
+		float stddev_V;
+		arm_std_f32((float *)adc_data_f, NUM_ADC_SAMPLES, &stddev_V);
 
-		if (stddev_v > ADC_TRIGGER_STDEV_V)
+		if (stddev_V > ADC_TRIGGER_STDEV_V)
 		{
 			if (num_shocks_last < NUM_SAMPLES_FOR_TRIGGER)
 			{
@@ -154,7 +172,7 @@ void AdcReaderTask(const void *arg)
 			else
 			{
 				struct led_color color;
-				compute_led_color(shared_temp_C, &color);
+				compute_led_color(temperature_C, &color);
 				led_set(&color);
 			}
 		}
