@@ -56,6 +56,7 @@
 #define HAL_CRC_MODULE_ENABLED
 /*#define HAL_CRYP_MODULE_ENABLED   */
 /*#define HAL_DAC_MODULE_ENABLED   */
+/*#define HAL_DCMI_MODULE_ENABLED   */
 /*#define HAL_DFSDM_MODULE_ENABLED   */
 /*#define HAL_FIREWALL_MODULE_ENABLED   */
 /*#define HAL_HCD_MODULE_ENABLED   */
@@ -68,7 +69,6 @@
 /*#define HAL_NOR_MODULE_ENABLED   */
 #define HAL_OPAMP_MODULE_ENABLED
 /*#define HAL_PCD_MODULE_ENABLED   */
-/*#define HAL_QSPI_MODULE_ENABLED   */
 /*#define HAL_QSPI_MODULE_ENABLED   */
 /*#define HAL_RNG_MODULE_ENABLED   */
 /*#define HAL_RTC_MODULE_ENABLED   */
@@ -243,6 +243,10 @@
 #ifdef HAL_DAC_MODULE_ENABLED
   #include "stm32l4xx_hal_dac.h"
 #endif /* HAL_DAC_MODULE_ENABLED */
+
+#ifdef HAL_DCMI_MODULE_ENABLED
+  #include "stm32l4xx_hal_dcmi.h"
+#endif /* HAL_DCMI_MODULE_ENABLED */
 
 #ifdef HAL_FIREWALL_MODULE_ENABLED
   #include "stm32l4xx_hal_firewall.h"

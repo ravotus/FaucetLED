@@ -184,7 +184,8 @@ void SystemClock_Config(void)
 
     /**Initializes the CPU, AHB and APB busses clocks 
     */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSE|RCC_OSCILLATORTYPE_MSI;
+  RCC_OscInitStruct.LSEState = RCC_LSE_ON;
   RCC_OscInitStruct.MSIState = RCC_MSI_ON;
   RCC_OscInitStruct.MSICalibrationValue = 0;
   RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_6;
@@ -235,6 +236,10 @@ void SystemClock_Config(void)
     /**Configure the Systick 
     */
   HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
+
+    /**Enable MSI Auto calibration 
+    */
+  HAL_RCCEx_EnableMSIPLLMode();
 
   /* SysTick_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(SysTick_IRQn, 15, 0);
@@ -313,6 +318,13 @@ static void MX_ADC1_Init(void)
     */
   sConfigInjected.InjectedChannel = ADC_CHANNEL_16;
   sConfigInjected.InjectedRank = 2;
+  if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+    /**Configure Injected Channel 
+    */
   sConfigInjected.InjectedSamplingTime = ADC_SAMPLETIME_12CYCLES_5;
   if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
   {
