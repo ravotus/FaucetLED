@@ -1,0 +1,2 @@
+Experimenting with adding a high-pass filter on the output of the amplifier.
+This filter used R=1M, C=1nF for a cutoff freq of 159Hz.
