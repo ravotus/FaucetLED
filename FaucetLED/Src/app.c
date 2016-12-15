@@ -64,20 +64,24 @@ static void compute_led_color(float temp_C, struct led_color *output)
 		return;
 	}
 
-	memset(output, 0, sizeof(*output));
-	if (temp_C <= 21.0f)
+	if (temp_C > 26.0f)
 	{
-		// Cold
-		output->blue = (uint8_t)(temp_C * -12.095238095238095f + 255.0f);
-	}
-	else if (temp_C >= 26.0f)
-	{
-		// Hot
-		output->red = (uint8_t)(temp_C * 7.470588235294118f - 193.23529411764707);
+		// Hot (26-60C)
+		const float M = -7.5f;
+		const float B = 450.0f;
+		output->red = 255;
+		output->green = (uint8_t)(powf(2.0f, (temp_C * M + B) * 8.0f / 255.0f) - 1);
+		output->blue = output->green;
+
 	}
 	else
 	{
-		// Lukewarm
+		// Cold (10-26C)
+		const float M = 15.9375f;
+		const float B = -159.375f;
+		output->red = (uint8_t)(powf(2.0f, (temp_C * M + B) * 8.0f / 255.0f) - 1);
+		output->green = output->red;
+		output->blue = 255;
 	}
 }
 
