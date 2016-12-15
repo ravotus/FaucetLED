@@ -163,13 +163,14 @@ void AdcReaderTask(const void *arg)
 		// conversion is not in progress. Lovely...
 		CLEAR_BIT(ADC_DEV.State, HAL_ADC_STATE_ERROR_INTERNAL);
 
-		// Avoid having to shift all the data left by 3 here by configuring the
-		// ADC in left-aligned data mode with offset enabled but set to 0.
-		// This produces a left-aligned 12-bit integer with one sign-extend bit,
-		// for 13 bits total. arm_q15_to_float() divides by 32768 (right shift 3).
+		// ADC data is required to be right-aligned because the injected channels
+		// have oversampling enabled.
 		arm_q15_to_float((int16_t *)adc_data, (float *)adc_data_f,
 				         NUM_ADC_SAMPLES);
-		arm_scale_f32((float *)adc_data_f, vdda_V,
+		// We need to scale the data by 8 because the adc is 12-bit for a range
+		// of [0, 4096), and arm_q15_to_float() expects a Q15 value in [0, 32768),
+		// hence (32768/4096) = 8.
+		arm_scale_f32((float *)adc_data_f, vdda_V * 8.0f,
 				      (float *)adc_data_f, NUM_ADC_SAMPLES);
 
 		// Calculate the standard deviation of the samples, which it turns out
