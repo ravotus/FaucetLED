@@ -102,7 +102,7 @@
 #define configMINIMAL_STACK_SIZE                 ((uint16_t)128)
 #define configTOTAL_HEAP_SIZE                    ((size_t)3000)
 #define configMAX_TASK_NAME_LEN                  ( 16 )
-#define configUSE_TRACE_FACILITY                 1
+#define configUSE_TRACE_FACILITY                 0
 #define configUSE_16_BIT_TICKS                   0
 #define configIDLE_SHOULD_YIELD                  0
 #define configUSE_MUTEXES                        1
@@ -110,6 +110,7 @@
 #define configCHECK_FOR_STACK_OVERFLOW           2
 #define configUSE_MALLOC_FAILED_HOOK             1
 #define configUSE_APPLICATION_TASK_TAG           1
+#define configENABLE_BACKWARD_COMPATIBILITY      0
 
 /* Co-routine definitions. */
 #define configUSE_CO_ROUTINES                    0
@@ -125,6 +126,8 @@ to exclude the API function. */
 #define INCLUDE_vTaskDelayUntil             1
 #define INCLUDE_vTaskDelay                  1
 #define INCLUDE_xTaskGetSchedulerState      1
+
+#define INCLUDE_uxTaskGetStackHighWaterMark 1
 
 /* Cortex-M specific definitions. */
 #ifdef __NVIC_PRIO_BITS

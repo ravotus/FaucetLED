@@ -67,11 +67,11 @@ const uint32_t USED uxTopUsedPriority = configMAX_PRIORITIES - 1;
 /* USER CODE END FunctionPrototypes */
 
 /* Hook prototypes */
-void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTaskName);
+void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName);
 void vApplicationMallocFailedHook(void);
 
 /* USER CODE BEGIN 4 */
-void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTaskName)
+void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName)
 {
 	/* Run time stack overflow checking is performed if
 	configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2. This hook function is
