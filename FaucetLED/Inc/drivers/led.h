@@ -25,7 +25,7 @@ struct led_color
 	uint8_t blue;
 };
 
-enum led_error led_init(uint32_t period);
+enum led_error led_init(TIM_HandleTypeDef *dev, uint32_t period);
 enum led_error led_deinit(void);
 enum led_error led_set(const struct led_color *color);
 

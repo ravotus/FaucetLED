@@ -1,16 +1,15 @@
 #include "stm32l4xx_hal.h"
 #include "drivers/led.h"
 
-extern TIM_HandleTypeDef htim1;
-
 static uint32_t timer_period = 0;
+static TIM_HandleTypeDef *timer_dev = NULL;
 
 static inline enum led_error hal_to_led_error(HAL_StatusTypeDef hal_status)
 {
 	return (enum led_error)hal_status;
 }
 
-enum led_error led_init(uint32_t period)
+enum led_error led_init(TIM_HandleTypeDef *dev, uint32_t period)
 {
 	if (period > 16843009)
 	{
@@ -19,12 +18,14 @@ enum led_error led_init(uint32_t period)
 		return LED_EINVAL;
 	}
 
+	timer_dev = dev;
 	timer_period = period;
 	return LED_EOK;
 }
 
 enum led_error led_deinit(void)
 {
+	timer_dev = NULL;
 	timer_period = 0;
 	return LED_EOK;
 }
@@ -35,7 +36,7 @@ enum led_error led_set(const struct led_color *color)
 	HAL_StatusTypeDef hal_status;
 	enum led_error error_ret = LED_EOK;
 
-	if (0 == timer_period)
+	if (! timer_dev || (0 == timer_period))
 	{
 		return LED_EDISABLED;
 	}
@@ -53,7 +54,7 @@ enum led_error led_set(const struct led_color *color)
 
 	// Red channel
 	sConfigOC.Pulse = (color->red * timer_period) / 255;
-	if ((hal_status = HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1)) != HAL_OK)
+	if ((hal_status = HAL_TIM_PWM_ConfigChannel(timer_dev, &sConfigOC, TIM_CHANNEL_1)) != HAL_OK)
 	{
 		error_ret = hal_to_led_error(hal_status);
 		goto out_disable;
@@ -61,7 +62,7 @@ enum led_error led_set(const struct led_color *color)
 
 	// Green channel
 	sConfigOC.Pulse = (color->green * timer_period) / 255;
-	if ((hal_status = HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2)) != HAL_OK)
+	if ((hal_status = HAL_TIM_PWM_ConfigChannel(timer_dev, &sConfigOC, TIM_CHANNEL_2)) != HAL_OK)
 	{
 		error_ret = hal_to_led_error(hal_status);
 		goto out_disable;
@@ -69,26 +70,26 @@ enum led_error led_set(const struct led_color *color)
 
 	// Blue channel
 	sConfigOC.Pulse = (color->blue * timer_period) / 255;
-	if ((hal_status = HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3)) != HAL_OK)
+	if ((hal_status = HAL_TIM_PWM_ConfigChannel(timer_dev, &sConfigOC, TIM_CHANNEL_3)) != HAL_OK)
 	{
 		error_ret = hal_to_led_error(hal_status);
 		goto out_disable;
 	}
 
 	// Enable outputs
-	if ((hal_status = HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1)) != HAL_OK)
+	if ((hal_status = HAL_TIM_PWM_Start(timer_dev, TIM_CHANNEL_1)) != HAL_OK)
 	{
 		error_ret = hal_to_led_error(hal_status);
 		goto out_disable;
 	}
 
-	if ((hal_status = HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2)) != HAL_OK)
+	if ((hal_status = HAL_TIM_PWM_Start(timer_dev, TIM_CHANNEL_2)) != HAL_OK)
 	{
 		error_ret = hal_to_led_error(hal_status);
 		goto out_disable;
 	}
 
-	if ((hal_status = HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3)) != HAL_OK)
+	if ((hal_status = HAL_TIM_PWM_Start(timer_dev, TIM_CHANNEL_3)) != HAL_OK)
 	{
 		error_ret = hal_to_led_error(hal_status);
 		goto out_disable;
@@ -97,9 +98,9 @@ enum led_error led_set(const struct led_color *color)
 	return error_ret;
 
 out_disable:
-	(void)HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
-	(void)HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
-	(void)HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
+	(void)HAL_TIM_PWM_Stop(timer_dev, TIM_CHANNEL_1);
+	(void)HAL_TIM_PWM_Stop(timer_dev, TIM_CHANNEL_2);
+	(void)HAL_TIM_PWM_Stop(timer_dev, TIM_CHANNEL_3);
 
 	return error_ret;
 }

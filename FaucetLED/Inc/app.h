@@ -16,8 +16,10 @@
 
 #define ADC_DEV				hadc1
 #define CRC_DEV				hcrc
+#define LED_TIM_DEV			htim2
 
 extern ADC_HandleTypeDef ADC_DEV;
 extern CRC_HandleTypeDef CRC_DEV;
+extern TIM_HandleTypeDef LED_TIMER_DEV;
 
 #endif /* __APP_H__ */
