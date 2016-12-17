@@ -66,6 +66,10 @@
 const uint32_t USED uxTopUsedPriority = configMAX_PRIORITIES - 1;
 /* USER CODE END FunctionPrototypes */
 
+/* Pre/Post sleep processing prototypes */
+void PreSleepProcessing(uint32_t *ulExpectedIdleTime);
+void PostSleepProcessing(uint32_t *ulExpectedIdleTime);
+
 /* Hook prototypes */
 void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName);
 void vApplicationMallocFailedHook(void);
@@ -96,6 +100,18 @@ void vApplicationMallocFailedHook(void)
 	BSP_LED_On(LED3);
 }
 /* USER CODE END 5 */
+
+/* USER CODE BEGIN PREPOSTSLEEP */
+void PreSleepProcessing(uint32_t *ulExpectedIdleTime)
+{
+
+}
+
+void PostSleepProcessing(uint32_t *ulExpectedIdleTime)
+{
+
+}
+/* USER CODE END PREPOSTSLEEP */
 
 /* USER CODE BEGIN Application */
      

@@ -12,5 +12,9 @@ sed -i -b 's_<?xml version="1.0" encoding="UTF-8"?>_<?xml version="1.0" encoding
 sed -i -b 's_^void AdcReaderTask\(.*\);_extern void AdcReaderTask\1;_' Src/main.c
 sed -i -b 's#^void AdcReaderTask\(.*\)$#__weak void AdcReaderTask\1#' Src/main.c
 
+# Fix configPRE/POST_SLEEP_PROCESSING not passing a pointer to Pre/PostSleepProcessing
+sed -i -b 's/^#define configPRE_SLEEP_PROCESSING.*/#define configPRE_SLEEP_PROCESSING(x)	PreSleepProcessing(\&x)/' Inc/FreeRTOSConfig.h
+sed -i -b 's/^#define configPOST_SLEEP_PROCESSING.*/#define configPOST_SLEEP_PROCESSING(x)	PostSleepProcessing(\&x)/' Inc/FreeRTOSConfig.h
+
 # Print git status for convenience
 git status
