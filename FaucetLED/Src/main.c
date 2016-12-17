@@ -61,7 +61,6 @@ OPAMP_HandleTypeDef hopamp1;
 
 TIM_HandleTypeDef htim1;
 
-osThreadId LedToggleHandle;
 osThreadId AdcReaderHandle;
 
 /* USER CODE BEGIN PV */
@@ -77,7 +76,6 @@ static void MX_ADC1_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_CRC_Init(void);
 static void MX_OPAMP1_Init(void);
-void LedToggleTask(void const * argument);
 extern void AdcReaderTask(void const * argument);
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
@@ -135,10 +133,6 @@ int main(void)
   /* USER CODE END RTOS_TIMERS */
 
   /* Create the thread(s) */
-  /* definition and creation of LedToggle */
-  osThreadDef(LedToggle, LedToggleTask, osPriorityNormal, 0, 128);
-  LedToggleHandle = osThreadCreate(osThread(LedToggle), NULL);
-
   /* definition and creation of AdcReader */
   osThreadDef(AdcReader, AdcReaderTask, osPriorityNormal, 0, 128);
   AdcReaderHandle = osThreadCreate(osThread(AdcReader), NULL);
@@ -511,18 +505,13 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 /* USER CODE END 4 */
 
-/* LedToggleTask function */
-void LedToggleTask(void const * argument)
+/* AdcReaderTask function */
+__weak void AdcReaderTask(void const * argument)
 {
 
   /* USER CODE BEGIN 5 */
-	uint32_t last_wake_time = osKernelSysTick();
-
-	for(;;)
-	{
-		//BSP_LED_Toggle(LED3);
-		osDelayUntil(&last_wake_time, 500);
-	}
+	// Defined as weak to allow overriding the default task.
+	// See app.c for actual definition.
   /* USER CODE END 5 */ 
 }
 
