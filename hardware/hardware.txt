@@ -49,3 +49,10 @@ Use an external 4.7kohm pullup.
 
 CRC:
 Both input and output needs to be configured to reverse bits, byte-wise. Use Dallas 1-wire CRC polynomial 0x31.
+
+Power input
+===========
+Removed SB9 from Nucleo board and replaced with jumper. With jumper off, can power Nucleo from 5VIN but with any voltage
+less than 5.5V. Micro ran fine even down to 2.5V, but below about 2.7V the blue LED didn't work (as expected). VIN is not
+a feasible option due to the high dropout of the 5V regulator on that input. And obviously the 3.3V input is not an option
+without an external regulator.
