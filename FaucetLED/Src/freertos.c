@@ -81,6 +81,8 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName)
 	configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2. This hook function is
 	called if a stack overflow is detected. */
 	BSP_LED_On(LED3);
+	taskDISABLE_INTERRUPTS();
+	while(1);
 }
 /* USER CODE END 4 */
 
@@ -98,6 +100,8 @@ void vApplicationMallocFailedHook(void)
 	to query the size of free heap space that remains (although it does not
 	provide information on how the remaining heap might be fragmented). */
 	BSP_LED_On(LED3);
+	taskDISABLE_INTERRUPTS();
+	while(1);
 }
 /* USER CODE END 5 */
 
