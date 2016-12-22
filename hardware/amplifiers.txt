@@ -61,3 +61,11 @@ too high. Note, for all of this I used R3=R4=100M because I didn't want to bothe
 increased C1 and C2 to 1000pF, which brought the gain in line with what I had previously seen on the other single amp
 circuit. There is definitely better 60Hz rejection with this topology, but it's not perfect. Furthermore, if I went this
 route I wouldn't be able to use the single opamp with SHDN pin like I was hoping for low-power support.
+
+PCB Layout 12/18/16
+===================
+I laid out the board using the MAX4256 (single opamp with SHDN in 8-SOIC package). However, if it is necessary to use a 
+MAX4257, make the following changes: May need to cut the AMP_SHDN trace going to pin 8 and tie pin 8 to +3.3V, or could still
+"power" the amp with the AMP_SHDN pin. Cut the trace +3.3V trace going to pin 7. Cut tthe trace going from pin 6 to C4.
+Tie pins 6 and 7 together to connect Vin- to the output. Connect pin 5 to the VCC_2_BUF net with a jumper. Finally connect 
+pin 1 to pin 1 of R5 (the Vout net, before R6).
