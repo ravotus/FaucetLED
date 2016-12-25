@@ -92,16 +92,17 @@ void AdcReaderTask(const void *arg)
 	uint8_t num_shocks_last = 0;
 
 	adc_task_handle = xTaskGetCurrentTaskHandle();
-
+#if 0
 	if (HAL_ADCEx_Calibration_Start(&ADC_DEV, ADC_SINGLE_ENDED) != HAL_OK)
 	{
 		Error_Handler();
 	}
-
+#endif
 	last_wake_time = osKernelSysTick();
 
 	while (1)
 	{
+#if 0
 		// First read the injected group which includes the internal voltage reference
 		// and the external temperature sensor (thermistor).
 		if (HAL_ADCEx_InjectedStart_IT(&ADC_DEV) != HAL_OK)
@@ -208,6 +209,8 @@ void AdcReaderTask(const void *arg)
 				led_set(&black);
 			}
 		}
-		osDelayUntil(&last_wake_time, 100);
+#endif
+		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_11);
+		osDelayUntil(&last_wake_time, 2);
 	}
 }

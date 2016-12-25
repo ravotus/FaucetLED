@@ -54,3 +54,16 @@ Cold:
 (21, 1) -> (0, 255)
 m = (255-1)/(0-21) = -12.095238095238095
 b = 1 - m * 21 = 255.0
+
+Low-Power Modes
+===============
+12/24/16: Low-power idle is working for the most part with HCLK=100kHz using the SysTick timer. Decided to treat each tick as 1s in low power mode,
+giving a granularity of 100000 / 8 = 12500 cycles/tick, better than the full power mode of 10000 cycles (when using HCLK/8 setting).
+However, sometimes get a hard fault shortly after startup. I've noticed if I comment out HAL_InitTick() inside of the PostSleepProcessing,
+the issue doesn't seem to be reproducible. Investigating the hard fault exception suggests that the issue may lie with the SysTick interrupt
+firing inside of HAL_RCC_ClockConfig(). Generally the issue shows up on line 929:
+    if(RCC_ClkInitStruct->SYSCLKSource == RCC_SYSCLKSOURCE_HSE)
+
+12/25/16: Figured it out. Need to set the voltage scaling mode back to 1 (high performance) when exiting sleep. The processor
+was generating a bus fault when writing the register to actually set the sysclk source back to PLL. This got me thinking about
+what actually happens when the clock frequency changes and all the prerequisites that must be in place to do so.

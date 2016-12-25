@@ -56,3 +56,8 @@ Removed SB9 from Nucleo board and replaced with jumper. With jumper off, can pow
 less than 5.5V. Micro ran fine even down to 2.5V, but below about 2.7V the blue LED didn't work (as expected). VIN is not
 a feasible option due to the high dropout of the 5V regulator on that input. And obviously the 3.3V input is not an option
 without an external regulator.
+
+Low-power mode
+==============
+FreeRTOS running normally: 15mA
+FreeRTOS tickless idle: 4.57mA

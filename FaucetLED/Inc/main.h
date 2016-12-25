@@ -53,8 +53,6 @@
 #define LED_TIM_PERIOD 1000
 #define LED_TIM_CLK_DIV 8
 
-#define USR_USB_DM_Pin GPIO_PIN_11
-#define USR_USB_DM_GPIO_Port GPIOA
 #define USR_USB_DP_Pin GPIO_PIN_12
 #define USR_USB_DP_GPIO_Port GPIOA
 /* USER CODE BEGIN Private defines */

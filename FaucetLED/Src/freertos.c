@@ -46,6 +46,8 @@
 #include "task.h"
 
 /* USER CODE BEGIN Includes */     
+#include "stm32l4xx_hal.h"
+#include "stm32l4xx_hal_pwr.h"
 #include "stm32l4xx_nucleo_32.h"
 /* USER CODE END Includes */
 
@@ -108,12 +110,71 @@ void vApplicationMallocFailedHook(void)
 /* USER CODE BEGIN PREPOSTSLEEP */
 void PreSleepProcessing(uint32_t *ulExpectedIdleTime)
 {
+	RCC_OscInitTypeDef RCC_OscInitStruct;
+	RCC_ClkInitTypeDef RCC_ClkInitStruct;
 
+	*ulExpectedIdleTime = 0;
+
+	// Stop SysTick while we fiddle with the core clock.
+	//SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
+
+	// Switch system clock source to MSI (off of PLL)
+	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_SYSCLK;
+	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_MSI;
+	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	// Configure MSI for 100kHz, turn off PLL and HSI
+	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
+	RCC_OscInitStruct.MSIState = RCC_MSI_ON;
+	RCC_OscInitStruct.HSIState = RCC_HSI_OFF;
+	RCC_OscInitStruct.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
+	RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_0;
+	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_OFF;
+	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	// Prevent the STM32 HAL tick timer from waking us up.
+	HAL_SuspendTick();
+
+	// Use low-power voltage scaling mode.
+	if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE2) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	// Re-enable SysTick as our low-power timer
+	// FreeRTOS handles calculating the expected value.
+	//SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
+
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
+	HAL_PWR_EnterSLEEPMode( PWR_LOWPOWERREGULATOR_ON, PWR_SLEEPENTRY_WFI );
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
 }
 
 void PostSleepProcessing(uint32_t *ulExpectedIdleTime)
 {
+	extern void SystemClock_Config(void);
+    /* System is Low Power Run mode when exiting Low Power Sleep mode,
+       disable low power run mode and reset the clock to initialization configuration */
+	HAL_PWREx_DisableLowPowerRunMode();
 
+	// Return to high-performance voltage scaling mode.
+	if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	// Re-initialize core clock configuration. This will also resume the HAL tick.
+	SystemClock_Config();
+	HAL_InitTick (TICK_INT_PRIORITY);
 }
 /* USER CODE END PREPOSTSLEEP */
 

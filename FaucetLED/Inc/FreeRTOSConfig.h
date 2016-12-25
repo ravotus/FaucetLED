@@ -172,7 +172,7 @@ standard names. */
 
 /* USER CODE BEGIN Defines */   	      
 /* Section where parameter definitions can be added (for instance, to override default ones in FreeRTOS.h) */
-
+#define configSYSTICK_CLOCK_HZ ( configCPU_CLOCK_HZ / 8 )
 /* USER CODE END Defines */ 
 
 #if defined(__ICCARM__) || defined(__CC_ARM) || defined(__GNUC__)
