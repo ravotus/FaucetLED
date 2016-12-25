@@ -210,7 +210,6 @@ void AdcReaderTask(const void *arg)
 			}
 		}
 #endif
-		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_11);
 		osDelayUntil(&last_wake_time, 2);
 	}
 }

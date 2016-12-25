@@ -72,7 +72,6 @@
  *----------------------------------------------------------*/
 
 /* Scheduler includes. */
-#include "stm32l4xx.h"
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -499,8 +498,6 @@ void xPortSysTickHandler( void )
 	known. */
 	portDISABLE_INTERRUPTS();
 	{
-		//GPIOB->BSRR = (uint32_t)GPIO_PIN_5;
-		//GPIOB->ODR ^= (uint32_t)GPIO_PIN_5;
 		/* Increment the RTOS tick. */
 		if( xTaskIncrementTick() != pdFALSE )
 		{
@@ -508,7 +505,6 @@ void xPortSysTickHandler( void )
 			the PendSV interrupt.  Pend the PendSV interrupt. */
 			portNVIC_INT_CTRL_REG = portNVIC_PENDSVSET_BIT;
 		}
-		//GPIOB->BRR = (uint32_t)GPIO_PIN_5;
 	}
 	portENABLE_INTERRUPTS();
 }
