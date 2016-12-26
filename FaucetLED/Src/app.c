@@ -210,6 +210,6 @@ void AdcReaderTask(const void *arg)
 			}
 		}
 #endif
-		osDelayUntil(&last_wake_time, 2);
+		osDelayUntil(&last_wake_time, 10);
 	}
 }

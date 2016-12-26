@@ -49,6 +49,8 @@
 #include "stm32l4xx_hal.h"
 #include "stm32l4xx_hal_pwr.h"
 #include "stm32l4xx_nucleo_32.h"
+
+#include "app.h"
 /* USER CODE END Includes */
 
 /* Variables -----------------------------------------------------------------*/
@@ -66,6 +68,8 @@
 #define USED
 #endif
 const uint32_t USED uxTopUsedPriority = configMAX_PRIORITIES - 1;
+
+extern void SystemClock_Config(void);
 /* USER CODE END FunctionPrototypes */
 
 /* Pre/Post sleep processing prototypes */
@@ -115,9 +119,6 @@ void PreSleepProcessing(uint32_t *ulExpectedIdleTime)
 
 	*ulExpectedIdleTime = 0;
 
-	// Stop SysTick while we fiddle with the core clock.
-	//SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
-
 	// Switch system clock source to MSI (off of PLL)
 	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_SYSCLK;
 	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_MSI;
@@ -141,27 +142,21 @@ void PreSleepProcessing(uint32_t *ulExpectedIdleTime)
 		Error_Handler();
 	}
 
-	// Prevent the STM32 HAL tick timer from waking us up.
-	HAL_SuspendTick();
-
 	// Use low-power voltage scaling mode.
 	if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE2) != HAL_OK)
 	{
 		Error_Handler();
 	}
 
-	// Re-enable SysTick as our low-power timer
-	// FreeRTOS handles calculating the expected value.
-	//SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
+	// Prevent the STM32 HAL tick timer from waking us up.
+	HAL_TIM_Base_Stop_IT(&HAL_TICK_TIM_DEV);
+	HAL_NVIC_DisableIRQ(HAL_TICK_TIM_IRQ);
 
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
 	HAL_PWR_EnterSLEEPMode( PWR_LOWPOWERREGULATOR_ON, PWR_SLEEPENTRY_WFI );
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
 }
 
 void PostSleepProcessing(uint32_t *ulExpectedIdleTime)
 {
-	extern void SystemClock_Config(void);
     /* System is Low Power Run mode when exiting Low Power Sleep mode,
        disable low power run mode and reset the clock to initialization configuration */
 	HAL_PWREx_DisableLowPowerRunMode();
@@ -174,7 +169,6 @@ void PostSleepProcessing(uint32_t *ulExpectedIdleTime)
 
 	// Re-initialize core clock configuration. This will also resume the HAL tick.
 	SystemClock_Config();
-	HAL_InitTick (TICK_INT_PRIORITY);
 }
 /* USER CODE END PREPOSTSLEEP */
 

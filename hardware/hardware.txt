@@ -61,3 +61,9 @@ Low-power mode
 ==============
 FreeRTOS running normally: 15mA
 FreeRTOS tickless idle: 4.57mA
+FreeRTOS tickless idle in LP sleep 10ms task MSI clk 400kHz: 707.95uA
+To check for regressions with low-power tickless idle:
+1. Configure one task to run every 10ms.
+2. In PreSleepProcessing() inside freertos.c, set a GPIO right before calling HAL_PWR_EnterSLEEPMode, and clear it afterwards.
+3. You should see the GPIO high (sleeping) approximately 80% of the time, and the signal having a period of around 10ms.
+   You should not see the signal go high and low immediately, which indicates that the micro woke up instantly.

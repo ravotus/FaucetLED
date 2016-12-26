@@ -16,5 +16,9 @@ sed -i -b 's#^void AdcReaderTask\(.*\)$#__weak void AdcReaderTask\1#' Src/main.c
 sed -i -b 's/^#define configPRE_SLEEP_PROCESSING.*/#define configPRE_SLEEP_PROCESSING(x)	PreSleepProcessing(\&x)/' Inc/FreeRTOSConfig.h
 sed -i -b 's/^#define configPOST_SLEEP_PROCESSING.*/#define configPOST_SLEEP_PROCESSING(x)	PostSleepProcessing(\&x)/' Inc/FreeRTOSConfig.h
 
+# Prevent SystemClock_Config from setting up the Systick since FreeRTOS handles the setup, and it causes issues calling SystemClock_Config() after sleep.
+sed -i -b 's#\sHAL_SYSTICK_Config#//HAL_SYSTICK_Config#' Src/main.c
+sed -i -b 's#\sHAL_SYSTICK_CLKSourceConfig#//HAL_SYSTICK_CLKSourceConfig#' Src/main.c
+
 # Print git status for convenience
 git status
