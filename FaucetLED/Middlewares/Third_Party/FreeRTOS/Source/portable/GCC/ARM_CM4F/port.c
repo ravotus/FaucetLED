@@ -517,7 +517,7 @@ void xPortSysTickHandler( void )
 	uint32_t ulReloadValue, ulCompleteTickPeriods, ulCompletedSysTickDecrements, ulSysTickCTRL;
 	TickType_t xModifiableIdleTime;
 
-#define LOW_POWER_TICK_HZ		( 100000 / 8 )
+#define LOW_POWER_TICK_HZ		( 400000 / 8 )
 #define LOW_POWER_TICKS_RATIO 	(configSYSTICK_CLOCK_HZ / LOW_POWER_TICK_HZ)
 
 		// Treat low-power ticks ==  low-power frequency, for simplicity.

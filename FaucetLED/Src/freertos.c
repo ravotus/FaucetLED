@@ -135,7 +135,7 @@ void PreSleepProcessing(uint32_t *ulExpectedIdleTime)
 	RCC_OscInitStruct.MSIState = RCC_MSI_ON;
 	RCC_OscInitStruct.HSIState = RCC_HSI_OFF;
 	RCC_OscInitStruct.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
-	RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_0;
+	RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_2;
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_OFF;
 	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
 	{
