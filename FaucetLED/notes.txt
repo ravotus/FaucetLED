@@ -67,3 +67,15 @@ firing inside of HAL_RCC_ClockConfig(). Generally the issue shows up on line 929
 12/25/16: Figured it out. Need to set the voltage scaling mode back to 1 (high performance) when exiting sleep. The processor
 was generating a bus fault when writing the register to actually set the sysclk source back to PLL. This got me thinking about
 what actually happens when the clock frequency changes and all the prerequisites that must be in place to do so.
+
+12/26/16: The HAL_InitTick() call seems to pretty badly mess up low-power mode. The TIM7 interrupt appears to pend soon after
+the tick is enabled. The only way I found around it was to disable the TIM7 interrupt directly with the NVIC.
+I'm not looking at integrating the app in with tickless support. It seems tickless suffers from pretty bad tick drift - 
+a 90ms timeout somehow turns into 65ms of real time. Furthermore, the ADC clock divider will need to be changed if the
+system clock frequency is changed, otherwise the /256 divider for the original 80MHz clock is obviously a bad idea.
+
+12/27/2016: Should look into running the FreeRTOS demo as a test to sanity check the port after making LP changes.
+Also want to look at running the core at a lower frequency. If we can get away with <=48MHz, then can use the MSI directly
+instead of having to start the PLL which uses substantial current. Furthermore, could also decrease the AHB clock and/or
+the APB clocks to further decrease power consumption.
+IMPORTANT: The peripheral clock gates need to be enabled to allow them to be enabled during sleep. See DMA1SMEN and ADCSMEN.
