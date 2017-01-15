@@ -73,7 +73,7 @@ void SystemClock_Config(void);
 void Error_Handler(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
-static void MX_ADC1_Init(void);
+void MX_ADC1_Init(void);
 static void MX_CRC_Init(void);
 static void MX_OPAMP1_Init(void);
 static void MX_TIM2_Init(void);
@@ -227,7 +227,7 @@ void SystemClock_Config(void)
 }
 
 /* ADC1 init function */
-static void MX_ADC1_Init(void)
+void MX_ADC1_Init(void)
 {
 
   ADC_ChannelConfTypeDef sConfig;

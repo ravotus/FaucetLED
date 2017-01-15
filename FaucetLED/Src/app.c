@@ -22,6 +22,7 @@ const struct led_color black = {.red = 0, .green = 0, .blue = 0};
 const struct led_color blue = {.red = 0, .green = 0, .blue = 255};
 
 static TaskHandle_t adc_task_handle = NULL;
+static uint32_t adc_cal_value;
 
 volatile static int16_t adc_data[NUM_ADC_SAMPLES];
 static float adc_data_f[NUM_ADC_SAMPLES];
@@ -111,10 +112,28 @@ void AdcReaderTask(const void *arg)
 		Error_Handler();
 	}
 
+	adc_cal_value = HAL_ADCEx_Calibration_GetValue(&ADC_DEV, ADC_SINGLE_ENDED);
+	HAL_ADC_DeInit(&ADC_DEV);
+
 	last_wake_time = osKernelSysTick();
 
 	while (1)
 	{
+		extern void MX_ADC1_Init(void);
+		MX_ADC1_Init();
+
+		// Workaround HAL bug which requires the ADC to be enabled to set the calibration
+		// but yet there is no way to fully enable it without starting a conversion.
+		if (ADC_Enable(&ADC_DEV) != HAL_OK)
+		{
+			Error_Handler();
+		}
+
+		if (HAL_ADCEx_Calibration_SetValue(&ADC_DEV, ADC_SINGLE_ENDED, adc_cal_value) != HAL_OK)
+		{
+			Error_Handler();
+		}
+
 		// First read the injected group which includes the internal voltage reference
 		// and the external temperature sensor (thermistor).
 		if (HAL_ADCEx_InjectedStart_IT(&ADC_DEV) != HAL_OK)
@@ -176,6 +195,10 @@ void AdcReaderTask(const void *arg)
 
 		// For safety...
 		(void)HAL_ADC_Stop_DMA(&ADC_DEV);
+
+		(void)HAL_ADC_DeInit(&ADC_DEV);
+		(void)HAL_ADCEx_DisableVoltageRegulator(&ADC_DEV);
+		(void)HAL_ADCEx_EnterADCDeepPowerDownMode(&ADC_DEV);
 
 		// ADC data is required to be right-aligned because the injected channels
 		// have oversampling enabled.

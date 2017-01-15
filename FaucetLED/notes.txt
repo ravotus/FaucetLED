@@ -83,4 +83,6 @@ IMPORTANT: The peripheral clock gates need to be enabled to allow them to be ena
 1/15/2017: Decided the easiest way to work around the ADC clock frequency changing issue during LPsleep was just to only enter
 Sleep mode when the ADC is running. This ends up being about 20ms of the 100ms main period. Also, running the CPU directly from
 the MSI at 48MHz avoids having to start the PLL which substantially saves power. Now the cpu draws 350uA on average while
-running the app in a 100ms task. Next up is investigating running the APB busses at a lower clock rate.
+running the app in a 100ms task. 
+
+Todo: Correct scaling of timer clocks for LED PWM during low-power sleep mode.
