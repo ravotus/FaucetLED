@@ -115,27 +115,15 @@ void vApplicationMallocFailedHook(void)
 void PreSleepProcessing(uint32_t *ulExpectedIdleTime)
 {
 	RCC_OscInitTypeDef RCC_OscInitStruct;
-	RCC_ClkInitTypeDef RCC_ClkInitStruct;
 
 	*ulExpectedIdleTime = 0;
 
-	// Switch system clock source to MSI (off of PLL)
-	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_SYSCLK;
-	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_MSI;
-	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
-	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
-	{
-		Error_Handler();
-	}
-
-	// Configure MSI for 100kHz, turn off PLL and HSI
+	// Configure MSI for lower speed which will automatically scale the sysclk.
 	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
 	RCC_OscInitStruct.MSIState = RCC_MSI_ON;
 	RCC_OscInitStruct.HSIState = RCC_HSI_OFF;
 	RCC_OscInitStruct.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
-	RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_2;
+	RCC_OscInitStruct.MSIClockRange = APP_LOW_POWER_MSI_RANGE;
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_OFF;
 	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
 	{
@@ -153,12 +141,8 @@ void PreSleepProcessing(uint32_t *ulExpectedIdleTime)
 	HAL_NVIC_DisableIRQ(HAL_TICK_TIM_IRQ);
 
 	HAL_PWR_EnterSLEEPMode( PWR_LOWPOWERREGULATOR_ON, PWR_SLEEPENTRY_WFI );
-}
 
-void PostSleepProcessing(uint32_t *ulExpectedIdleTime)
-{
-    /* System is Low Power Run mode when exiting Low Power Sleep mode,
-       disable low power run mode and reset the clock to initialization configuration */
+	// Post-sleep processing
 	HAL_PWREx_DisableLowPowerRunMode();
 
 	// Return to high-performance voltage scaling mode.
@@ -169,6 +153,11 @@ void PostSleepProcessing(uint32_t *ulExpectedIdleTime)
 
 	// Re-initialize core clock configuration. This will also resume the HAL tick.
 	SystemClock_Config();
+}
+
+void PostSleepProcessing(uint32_t *ulExpectedIdleTime)
+{
+	(void)ulExpectedIdleTime;
 }
 /* USER CODE END PREPOSTSLEEP */
 

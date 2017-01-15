@@ -75,6 +75,8 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "app.h"
+
 #ifndef __VFP_FP__
 	#error This port can only be used when the project options are configured to enable hardware floating point support.
 #endif
@@ -512,18 +514,32 @@ void xPortSysTickHandler( void )
 
 #if configUSE_TICKLESS_IDLE == 1
 
+#define LOW_POWER_TICK_HZ		( APP_LOW_POWER_TICK_HZ / ( configCPU_CLOCK_HZ / configSYSTICK_CLOCK_HZ ) )
+#define LOW_POWER_TICKS_RATIO 	( configSYSTICK_CLOCK_HZ / APP_LOW_POWER_TICK_HZ )
+
 	__attribute__((weak)) void vPortSuppressTicksAndSleep( TickType_t xExpectedIdleTime )
 	{
+	uint8_t low_power_sleep;
 	uint32_t ulReloadValue, ulCompleteTickPeriods, ulCompletedSysTickDecrements, ulSysTickCTRL;
 	TickType_t xModifiableIdleTime;
 
-#define LOW_POWER_TICK_HZ		( 400000 / 8 )
-#define LOW_POWER_TICKS_RATIO 	(configSYSTICK_CLOCK_HZ / LOW_POWER_TICK_HZ)
+		low_power_sleep = app_can_low_power_sleep();
 
-		// Treat low-power ticks ==  low-power frequency, for simplicity.
+		// Treat low-power ticks == low-power frequency, for simplicity.
 		// Ticks don't mean anything when sleeping anyway.
-		ulTimerCountsForOneTick = LOW_POWER_TICK_HZ;
-		xMaximumPossibleSuppressedTicks = portMAX_24_BIT_NUMBER / ulTimerCountsForOneTick;
+
+		ulTimerCountsForOneTick = (configSYSTICK_CLOCK_HZ / configTICK_RATE_HZ);
+
+		if (low_power_sleep)
+		{
+			xMaximumPossibleSuppressedTicks = portMAX_24_BIT_NUMBER / LOW_POWER_TICK_HZ;
+			ulStoppedTimerCompensation = portMISSED_COUNTS_FACTOR;
+		}
+		else
+		{
+			xMaximumPossibleSuppressedTicks = portMAX_24_BIT_NUMBER / ulTimerCountsForOneTick;
+			ulStoppedTimerCompensation = portMISSED_COUNTS_FACTOR / ( configCPU_CLOCK_HZ / configSYSTICK_CLOCK_HZ );
+		}
 
 		/* Make sure the SysTick reload value does not overflow the counter. */
 		if( xExpectedIdleTime > xMaximumPossibleSuppressedTicks )
@@ -540,11 +556,22 @@ void xPortSysTickHandler( void )
 		/* Calculate the reload value required to wait xExpectedIdleTime
 		tick periods.  -1 is used because this code will execute part way
 		through one of the tick periods. */
-		ulReloadValue = (portNVIC_SYSTICK_CURRENT_VALUE_REG / LOW_POWER_TICKS_RATIO) +
-				(( ulTimerCountsForOneTick * ( xExpectedIdleTime - 1UL )) / configTICK_RATE_HZ);
-		if( ulReloadValue > (ulStoppedTimerCompensation * LOW_POWER_TICKS_RATIO) )
+		if (low_power_sleep)
 		{
-			ulReloadValue -= (ulStoppedTimerCompensation * LOW_POWER_TICKS_RATIO);
+			ulReloadValue = (portNVIC_SYSTICK_CURRENT_VALUE_REG / LOW_POWER_TICKS_RATIO) +
+					(( LOW_POWER_TICK_HZ * ( xExpectedIdleTime - 1UL )) / configTICK_RATE_HZ);
+			if( ulReloadValue > (ulStoppedTimerCompensation * 1) )
+			{
+				ulReloadValue -= (ulStoppedTimerCompensation * 1);
+			}
+		}
+		else
+		{
+			ulReloadValue = portNVIC_SYSTICK_CURRENT_VALUE_REG + ( ulTimerCountsForOneTick * ( xExpectedIdleTime - 1UL ) );
+			if( ulReloadValue > ulStoppedTimerCompensation )
+			{
+				ulReloadValue -= ulStoppedTimerCompensation;
+			}
 		}
 
 		/* Enter a critical section but don't use the taskENTER_CRITICAL()
@@ -557,9 +584,6 @@ void xPortSysTickHandler( void )
 		to be unsuspended then abandon the low power entry. */
 		if( eTaskConfirmSleepModeStatus() == eAbortSleep )
 		{
-			ulTimerCountsForOneTick = ( configSYSTICK_CLOCK_HZ / configTICK_RATE_HZ );
-			xMaximumPossibleSuppressedTicks = portMAX_24_BIT_NUMBER / ulTimerCountsForOneTick;
-
 			/* Restart from whatever is left in the count register to complete
 			this tick period. */
 			portNVIC_SYSTICK_LOAD_REG = portNVIC_SYSTICK_CURRENT_VALUE_REG;
@@ -593,7 +617,10 @@ void xPortSysTickHandler( void )
 			should not be executed again.  However, the original expected idle
 			time variable must remain unmodified, so a copy is taken. */
 			xModifiableIdleTime = xExpectedIdleTime;
-			configPRE_SLEEP_PROCESSING( xModifiableIdleTime );
+			if (low_power_sleep)
+			{
+				configPRE_SLEEP_PROCESSING( xModifiableIdleTime );
+			}
 			if( xModifiableIdleTime > 0 )
 			{
 				__asm volatile( "dsb" );
@@ -613,10 +640,6 @@ void xPortSysTickHandler( void )
 			above. */
 			__asm volatile( "cpsie i" );
 
-			// Restore previous values.
-			ulTimerCountsForOneTick = ( configSYSTICK_CLOCK_HZ / configTICK_RATE_HZ );
-			xMaximumPossibleSuppressedTicks = portMAX_24_BIT_NUMBER / ulTimerCountsForOneTick;
-
 			if( ( ulSysTickCTRL & portNVIC_SYSTICK_COUNT_FLAG_BIT ) != 0 )
 			{
 				uint32_t ulCalculatedLoadValue;
@@ -625,7 +648,14 @@ void xPortSysTickHandler( void )
 				count reloaded with ulReloadValue.  Reset the
 				portNVIC_SYSTICK_LOAD_REG with whatever remains of this tick
 				period. */
-				ulCalculatedLoadValue = (( ulTimerCountsForOneTick - 1UL )) - (( ulReloadValue - portNVIC_SYSTICK_CURRENT_VALUE_REG ) * ulTimerCountsForOneTick / configTICK_RATE_HZ);
+				if (low_power_sleep)
+				{
+					ulCalculatedLoadValue = ( ulTimerCountsForOneTick - 1UL ) - (( ulReloadValue - portNVIC_SYSTICK_CURRENT_VALUE_REG ) * LOW_POWER_TICK_HZ / configTICK_RATE_HZ);
+				}
+				else
+				{
+					ulCalculatedLoadValue = ( ulTimerCountsForOneTick - 1UL ) - ( ulReloadValue - portNVIC_SYSTICK_CURRENT_VALUE_REG );
+				}
 
 				/* Don't allow a tiny value, or values that have somehow
 				underflowed because the post sleep hook did something
@@ -650,7 +680,14 @@ void xPortSysTickHandler( void )
 				Work out how long the sleep lasted rounded to complete tick
 				periods (not the ulReload value which accounted for part
 				ticks). */
-				ulCompletedSysTickDecrements = ( xExpectedIdleTime * ulTimerCountsForOneTick ) - (portNVIC_SYSTICK_CURRENT_VALUE_REG * LOW_POWER_TICKS_RATIO);
+				if (low_power_sleep)
+				{
+					ulCompletedSysTickDecrements = ( xExpectedIdleTime * LOW_POWER_TICK_HZ ) - (portNVIC_SYSTICK_CURRENT_VALUE_REG * LOW_POWER_TICKS_RATIO);
+				}
+				else
+				{
+					ulCompletedSysTickDecrements = ( xExpectedIdleTime * ulTimerCountsForOneTick ) - portNVIC_SYSTICK_CURRENT_VALUE_REG;
+				}
 
 				/* How many complete tick periods passed while the processor
 				was waiting? */

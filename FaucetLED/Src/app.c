@@ -26,6 +26,19 @@ static TaskHandle_t adc_task_handle = NULL;
 volatile static int16_t adc_data[NUM_ADC_SAMPLES];
 static float adc_data_f[NUM_ADC_SAMPLES];
 
+uint8_t app_can_low_power_sleep(void)
+{
+	uint32_t adc_state = HAL_ADC_GetState(&ADC_DEV);
+	if ((adc_state & HAL_ADC_STATE_REG_BUSY) || (adc_state & HAL_ADC_STATE_INJ_BUSY))
+	{
+		return 0;
+	}
+	else
+	{
+		return 1;
+	}
+}
+
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
 	BaseType_t higher_prio_task_woken = pdFALSE;
@@ -92,17 +105,16 @@ void AdcReaderTask(const void *arg)
 	uint8_t num_shocks_last = 0;
 
 	adc_task_handle = xTaskGetCurrentTaskHandle();
-#if 0
+
 	if (HAL_ADCEx_Calibration_Start(&ADC_DEV, ADC_SINGLE_ENDED) != HAL_OK)
 	{
 		Error_Handler();
 	}
-#endif
+
 	last_wake_time = osKernelSysTick();
 
 	while (1)
 	{
-#if 0
 		// First read the injected group which includes the internal voltage reference
 		// and the external temperature sensor (thermistor).
 		if (HAL_ADCEx_InjectedStart_IT(&ADC_DEV) != HAL_OK)
@@ -128,7 +140,7 @@ void AdcReaderTask(const void *arg)
 		uint16_t vrefint_value = HAL_ADCEx_InjectedGetValue(&ADC_DEV, ADC_INJ_CHANNEL_VREF);
 		uint16_t exttemp_value = HAL_ADCEx_InjectedGetValue(&ADC_DEV, ADC_INJ_CHANNEL_EXTTEMP);
 
-		(void)HAL_ADC_Stop_IT(&ADC_DEV);
+		(void)HAL_ADCEx_InjectedStop_IT(&ADC_DEV);
 
 		// Calculate the value of the internal reference.
 		float vdda_V = 3.0 * (*VREFINT_CAL) / vrefint_value;
@@ -164,9 +176,6 @@ void AdcReaderTask(const void *arg)
 
 		// For safety...
 		(void)HAL_ADC_Stop_DMA(&ADC_DEV);
-		// The hal incorrectly sets this bit if you call HAL_ADC_Stop_DMA() while a
-		// conversion is not in progress. Lovely...
-		CLEAR_BIT(ADC_DEV.State, HAL_ADC_STATE_ERROR_INTERNAL);
 
 		// ADC data is required to be right-aligned because the injected channels
 		// have oversampling enabled.
@@ -209,7 +218,7 @@ void AdcReaderTask(const void *arg)
 				led_set(&black);
 			}
 		}
-#endif
-		osDelayUntil(&last_wake_time, 10);
+
+		osDelayUntil(&last_wake_time, 100);
 	}
 }

@@ -4,7 +4,13 @@
 # code via CubeMX. Specifically, FreeRTOS is custom (9.0.0 vs 8.x), and
 # the .cproject file needs some xml fixups to avoid lots of diff noise.
 
+# This file contains a workaround manually added.
+git checkout -- Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_dma.c
+
+# Using a newer version of FreeRTOS
 git checkout -- Middlewares/Third_Party/FreeRTOS/Source
+
+# Clean up the project file so it's in the format Eclipse uses.
 sed -i -b 's_ />_/>_' .cproject
 sed -i -b 's_<?xml version="1.0" encoding="UTF-8"?>_<?xml version="1.0" encoding="UTF-8" standalone="no"?>_' .cproject
 

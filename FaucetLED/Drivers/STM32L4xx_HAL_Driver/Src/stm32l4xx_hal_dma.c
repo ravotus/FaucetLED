@@ -463,7 +463,7 @@ HAL_StatusTypeDef HAL_DMA_Abort(DMA_HandleTypeDef *hdma)
     /* no transfer ongoing */
     hdma->ErrorCode = HAL_DMA_ERROR_NO_XFER;
         
-    status = HAL_ERROR;
+    status = HAL_OK;
   }
   else
   {

@@ -25,4 +25,9 @@ extern CRC_HandleTypeDef CRC_DEV;
 extern TIM_HandleTypeDef LED_TIMER_DEV;
 extern TIM_HandleTypeDef HAL_TICK_TIM_DEV;
 
+#define APP_LOW_POWER_TICK_HZ	400000
+#define APP_LOW_POWER_MSI_RANGE	RCC_MSIRANGE_2
+
+uint8_t app_can_low_power_sleep(void);
+
 #endif /* __APP_H__ */
