@@ -335,7 +335,7 @@ static void MX_OPAMP1_Init(void)
   hopamp1.Init.PowerSupplyRange = OPAMP_POWERSUPPLY_HIGH;
   hopamp1.Init.Mode = OPAMP_FOLLOWER_MODE;
   hopamp1.Init.NonInvertingInput = OPAMP_NONINVERTINGINPUT_IO0;
-  hopamp1.Init.PowerMode = OPAMP_POWERMODE_NORMAL;
+  hopamp1.Init.PowerMode = OPAMP_POWERMODE_LOWPOWER;
   hopamp1.Init.UserTrimming = OPAMP_TRIMMING_FACTORY;
   if (HAL_OPAMP_Init(&hopamp1) != HAL_OK)
   {
