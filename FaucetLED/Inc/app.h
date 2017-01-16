@@ -19,11 +19,13 @@
 #define LED_TIM_DEV			htim2
 #define HAL_TICK_TIM_DEV	htim7
 #define HAL_TICK_TIM_IRQ	TIM7_IRQn
+#define OPAMP_DEV			hopamp1
 
-extern ADC_HandleTypeDef ADC_DEV;
-extern CRC_HandleTypeDef CRC_DEV;
-extern TIM_HandleTypeDef LED_TIMER_DEV;
-extern TIM_HandleTypeDef HAL_TICK_TIM_DEV;
+extern ADC_HandleTypeDef 	ADC_DEV;
+extern CRC_HandleTypeDef 	CRC_DEV;
+extern TIM_HandleTypeDef 	LED_TIMER_DEV;
+extern TIM_HandleTypeDef	HAL_TICK_TIM_DEV;
+extern OPAMP_HandleTypeDef	OPAMP_DEV;
 
 #define APP_LOW_POWER_TICK_HZ	400000
 #define APP_LOW_POWER_MSI_RANGE	RCC_MSIRANGE_2

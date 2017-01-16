@@ -119,6 +119,11 @@ void AdcReaderTask(const void *arg)
 
 	while (1)
 	{
+		// Enable the external opamp and give it some time to settle. It needs 3.5us min.
+		HAL_GPIO_WritePin(AMP_SHDN_GPIO_Port, AMP_SHDN_Pin, GPIO_PIN_SET);
+		// Start the internal opamp which buffers Vcc/2.
+		HAL_OPAMP_Start(&OPAMP_DEV);
+
 		extern void MX_ADC1_Init(void);
 		MX_ADC1_Init();
 
@@ -199,6 +204,9 @@ void AdcReaderTask(const void *arg)
 		(void)HAL_ADC_DeInit(&ADC_DEV);
 		(void)HAL_ADCEx_DisableVoltageRegulator(&ADC_DEV);
 		(void)HAL_ADCEx_EnterADCDeepPowerDownMode(&ADC_DEV);
+
+		HAL_GPIO_WritePin(AMP_SHDN_GPIO_Port, AMP_SHDN_Pin, GPIO_PIN_RESET);
+		HAL_OPAMP_Stop(&OPAMP_DEV);
 
 		// ADC data is required to be right-aligned because the injected channels
 		// have oversampling enabled.

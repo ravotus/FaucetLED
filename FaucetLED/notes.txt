@@ -85,4 +85,18 @@ Sleep mode when the ADC is running. This ends up being about 20ms of the 100ms m
 the MSI at 48MHz avoids having to start the PLL which substantially saves power. Now the cpu draws 350uA on average while
 running the app in a 100ms task. 
 
+1/16/2017: Started measuring whole-board current. Had to remove R14 from the Nucleo board because it was causing the ST-Link to
+try to turn on and draw more current. Currents were as follows before removing R14:
+'Iuc': 0.00017782794100389227
+'Itherm': 0.000159
+'Itot': 0.0012302687708123812
+'Iopamp': 0.0003182579314564716
+'Inucleo': 0.0006918309709189362
+'Iref': 1.6499999999999999e-06
+'Inucleo_extra': 0.0005140030299150439
+'Iamp_shdn': 0.0009120108393559096
+
+Need to investigate why it seems the current oscillates rapidly when I enabled SHDN (but had never looked at it before).
+Possibly the external opamp oscillating due to the piezo input?
+
 Todo: Correct scaling of timer clocks for LED PWM during low-power sleep mode.
