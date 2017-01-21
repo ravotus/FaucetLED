@@ -96,7 +96,8 @@ try to turn on and draw more current. Currents were as follows before removing R
 'Inucleo_extra': 0.0005140030299150439
 'Iamp_shdn': 0.0009120108393559096
 
+1/21/2017: Run TIM2 at /1 clk with period of 255 because timer clock = 400kHz/16*2 = 50kHz. Then,
+PWM frequency = 50kHz / 255 = 196Hz. In full-power mode, PWM freq = (48MHz / 16) / 255 = 11.76kHz.
+
 Need to investigate why it seems the current oscillates rapidly when I enabled SHDN (but had never looked at it before).
 Possibly the external opamp oscillating due to the piezo input?
-
-Todo: Correct scaling of timer clocks for LED PWM during low-power sleep mode.
