@@ -116,7 +116,7 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
   BSP_LED_Init(LED3);
-  led_init(&LED_TIM_DEV, LED_TIM_PERIOD);
+  led_init(&LED_TIMER_DEV, LED_TIM_PERIOD);
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN RTOS_MUTEX */

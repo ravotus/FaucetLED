@@ -16,7 +16,7 @@
 
 #define ADC_DEV				hadc1
 #define CRC_DEV				hcrc
-#define LED_TIM_DEV			htim2
+#define LED_TIMER_DEV		htim2
 #define HAL_TICK_TIM_DEV	htim7
 #define HAL_TICK_TIM_IRQ	TIM7_IRQn
 #define OPAMP_DEV			hopamp1
