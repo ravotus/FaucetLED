@@ -55,6 +55,8 @@
 
 #define AMP_SHDN_Pin GPIO_PIN_7
 #define AMP_SHDN_GPIO_Port GPIOA
+#define THERM_PWR_Pin GPIO_PIN_8
+#define THERM_PWR_GPIO_Port GPIOA
 #define USR_USB_DM_Pin GPIO_PIN_11
 #define USR_USB_DM_GPIO_Port GPIOA
 #define USR_USB_DP_Pin GPIO_PIN_12

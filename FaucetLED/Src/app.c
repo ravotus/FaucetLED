@@ -119,6 +119,12 @@ void AdcReaderTask(const void *arg)
 
 	while (1)
 	{
+		// Power the thermistor to measure temperature
+		HAL_GPIO_WritePin(THERM_PWR_GPIO_Port, THERM_PWR_Pin, GPIO_PIN_SET);
+
+		// The thermistor has a long rise time due to the cable.
+		osDelay(20);
+
 		// Enable the external opamp and give it some time to settle. It needs 3.5us min.
 		HAL_GPIO_WritePin(AMP_SHDN_GPIO_Port, AMP_SHDN_Pin, GPIO_PIN_SET);
 		// Start the internal opamp which buffers Vcc/2.
@@ -165,6 +171,9 @@ void AdcReaderTask(const void *arg)
 		uint16_t exttemp_value = HAL_ADCEx_InjectedGetValue(&ADC_DEV, ADC_INJ_CHANNEL_EXTTEMP);
 
 		(void)HAL_ADCEx_InjectedStop_IT(&ADC_DEV);
+
+		// No need for the thermistor now.
+		HAL_GPIO_WritePin(THERM_PWR_GPIO_Port, THERM_PWR_Pin, GPIO_PIN_RESET);
 
 		// Calculate the value of the internal reference.
 		float vdda_V = 3.0 * (*VREFINT_CAL) / vrefint_value;
