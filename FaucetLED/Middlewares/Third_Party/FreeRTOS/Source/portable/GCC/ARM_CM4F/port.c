@@ -75,6 +75,10 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "stm32l4xx_hal.h"
+#include "stm32l4xx_hal_pwr.h"
+#include "stm32l4xx_hal_tim.h"
+
 #include "app.h"
 
 #ifndef __VFP_FP__
@@ -514,29 +518,39 @@ void xPortSysTickHandler( void )
 
 #if configUSE_TICKLESS_IDLE == 1
 
+#define STOP_TICKS_RATIO		( configSYSTICK_CLOCK_HZ / LPTIM_CLK_HZ )
+
 #define LOW_POWER_TICK_HZ		( APP_LOW_POWER_TICK_HZ / ( configCPU_CLOCK_HZ / configSYSTICK_CLOCK_HZ ) )
 #define LOW_POWER_TICKS_RATIO 	( configSYSTICK_CLOCK_HZ / APP_LOW_POWER_TICK_HZ )
 
 	__attribute__((weak)) void vPortSuppressTicksAndSleep( TickType_t xExpectedIdleTime )
 	{
-	uint8_t low_power_sleep;
+	SleepType_E sleep_type;
 	uint32_t ulReloadValue, ulCompleteTickPeriods, ulCompletedSysTickDecrements, ulSysTickCTRL;
-	TickType_t xModifiableIdleTime;
 
-		low_power_sleep = app_can_low_power_sleep();
+		sleep_type = app_get_sleep_capability();
 
-		// Treat low-power ticks == low-power frequency, for simplicity.
-		// Ticks don't mean anything when sleeping anyway.
-
-		ulTimerCountsForOneTick = (configSYSTICK_CLOCK_HZ / configTICK_RATE_HZ);
-
-		if (low_power_sleep)
+		if (SLEEP_STOP == sleep_type)
 		{
+			ulTimerCountsForOneTick = (LPTIM_CLK_HZ / configTICK_RATE_HZ);
+
+			xMaximumPossibleSuppressedTicks = configTICK_RATE_HZ * LPTIM_PERIOD / ( LPTIM_CLK_HZ / LPTIM_CLK_DIV );
+			ulStoppedTimerCompensation = portMISSED_COUNTS_FACTOR;
+		}
+		else if (SLEEP_LOW_POWER == sleep_type)
+		{
+			// Treat low-power ticks == low-power frequency, for simplicity.
+			// Ticks don't mean anything when sleeping anyway.
+
+			ulTimerCountsForOneTick = (configSYSTICK_CLOCK_HZ / configTICK_RATE_HZ);
+
 			xMaximumPossibleSuppressedTicks = portMAX_24_BIT_NUMBER / LOW_POWER_TICK_HZ;
 			ulStoppedTimerCompensation = portMISSED_COUNTS_FACTOR;
 		}
 		else
 		{
+			ulTimerCountsForOneTick = (configSYSTICK_CLOCK_HZ / configTICK_RATE_HZ);
+
 			xMaximumPossibleSuppressedTicks = portMAX_24_BIT_NUMBER / ulTimerCountsForOneTick;
 			ulStoppedTimerCompensation = portMISSED_COUNTS_FACTOR / ( configCPU_CLOCK_HZ / configSYSTICK_CLOCK_HZ );
 		}
@@ -556,22 +570,25 @@ void xPortSysTickHandler( void )
 		/* Calculate the reload value required to wait xExpectedIdleTime
 		tick periods.  -1 is used because this code will execute part way
 		through one of the tick periods. */
-		if (low_power_sleep)
+		if (SLEEP_STOP == sleep_type)
+		{
+			ulReloadValue = (portNVIC_SYSTICK_CURRENT_VALUE_REG / STOP_TICKS_RATIO) +
+					( ulTimerCountsForOneTick * ( xExpectedIdleTime - 1UL ) );
+		}
+		else if (SLEEP_LOW_POWER == sleep_type)
 		{
 			ulReloadValue = (portNVIC_SYSTICK_CURRENT_VALUE_REG / LOW_POWER_TICKS_RATIO) +
 					(( LOW_POWER_TICK_HZ * ( xExpectedIdleTime - 1UL )) / configTICK_RATE_HZ);
-			if( ulReloadValue > (ulStoppedTimerCompensation * 1) )
-			{
-				ulReloadValue -= (ulStoppedTimerCompensation * 1);
-			}
 		}
-		else
+		else // SLEEP_NONE
 		{
 			ulReloadValue = portNVIC_SYSTICK_CURRENT_VALUE_REG + ( ulTimerCountsForOneTick * ( xExpectedIdleTime - 1UL ) );
-			if( ulReloadValue > ulStoppedTimerCompensation )
-			{
-				ulReloadValue -= ulStoppedTimerCompensation;
-			}
+
+		}
+
+		if( ulReloadValue > ulStoppedTimerCompensation )
+		{
+			ulReloadValue -= ulStoppedTimerCompensation;
 		}
 
 		/* Enter a critical section but don't use the taskENTER_CRITICAL()
@@ -611,23 +628,80 @@ void xPortSysTickHandler( void )
 			/* Restart SysTick. */
 			portNVIC_SYSTICK_CTRL_REG |= portNVIC_SYSTICK_ENABLE_BIT;
 
-			/* Sleep until something happens.  configPRE_SLEEP_PROCESSING() can
-			set its parameter to 0 to indicate that its implementation contains
-			its own wait for interrupt or wait for event instruction, and so wfi
-			should not be executed again.  However, the original expected idle
-			time variable must remain unmodified, so a copy is taken. */
-			xModifiableIdleTime = xExpectedIdleTime;
-			if (low_power_sleep)
-			{
-				configPRE_SLEEP_PROCESSING( xModifiableIdleTime );
-			}
-			if( xModifiableIdleTime > 0 )
+			/* Sleep until something happens. */
+			if (SLEEP_NONE == sleep_type)
 			{
 				__asm volatile( "dsb" );
 				__asm volatile( "wfi" );
 				__asm volatile( "isb" );
 			}
-			configPOST_SLEEP_PROCESSING( xExpectedIdleTime );
+			else
+			{
+				RCC_OscInitTypeDef RCC_OscInitStruct;
+
+				__HAL_FLASH_SLEEP_POWERDOWN_ENABLE();
+
+				// Prevent the STM32 HAL tick timer from waking us up.
+				HAL_SuspendTick();
+				HAL_TIM_Base_Stop_IT(&HAL_TICK_TIM_DEV);
+				HAL_NVIC_DisableIRQ(HAL_TICK_TIM_IRQ);
+
+				if (SLEEP_LOW_POWER == sleep_type)
+				{
+					// Configure MSI for lower speed which will automatically scale the sysclk.
+					RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
+					RCC_OscInitStruct.MSIState = RCC_MSI_ON;
+					RCC_OscInitStruct.HSIState = RCC_HSI_OFF;
+					RCC_OscInitStruct.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
+					RCC_OscInitStruct.MSIClockRange = APP_LOW_POWER_MSI_RANGE;
+					RCC_OscInitStruct.PLL.PLLState = RCC_PLL_OFF;
+					if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+					{
+						Error_Handler();
+					}
+
+					// Use low-power voltage scaling mode.
+					if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE2) != HAL_OK)
+					{
+						Error_Handler();
+					}
+
+					HAL_PWR_EnterSLEEPMode( PWR_LOWPOWERREGULATOR_ON, PWR_SLEEPENTRY_WFI );
+
+					// Post-sleep processing
+					HAL_PWREx_DisableLowPowerRunMode();
+
+					// Return to high-performance voltage scaling mode.
+					if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1) != HAL_OK)
+					{
+						Error_Handler();
+					}
+
+					// Re-initialize core clock configuration. This will also resume the HAL tick.
+					SystemClock_Config();
+				}
+				else // SLEEP_STOP
+				{
+					// Stop SysTick so it doesn't wake us immediately.
+					ulSysTickCTRL = portNVIC_SYSTICK_CTRL_REG;
+					portNVIC_SYSTICK_CTRL_REG = ( ulSysTickCTRL & ~portNVIC_SYSTICK_ENABLE_BIT );
+
+					// Wake up directly to the MSI clock.
+					__HAL_RCC_WAKEUPSTOP_CLK_CONFIG(RCC_STOP_WAKEUPCLOCK_MSI);
+
+					// Configure LPTIM1 to wake us, since the systick will be stopped due to core stop.
+					HAL_LPTIM_OnePulse_Start(&LPTIM_DEV, ulReloadValue, ulReloadValue);
+					__HAL_LPTIM_ENABLE_IT(&LPTIM_DEV, LPTIM_IT_CMPM);
+					//HAL_LPTIM_TimeOut_Start_IT(&LPTIM_DEV, LPTIM_PERIOD, ulReloadValue);
+
+					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
+
+					// Per the datasheet, we can enter Stop2 mode directly from Run mode.
+					HAL_PWREx_EnterSTOP2Mode(PWR_STOPENTRY_WFI);
+
+					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
+				}
+			}
 
 			/* Stop SysTick.  Again, the time the SysTick is stopped for is
 			accounted for as best it can be, but using the tickless mode will
@@ -648,7 +722,12 @@ void xPortSysTickHandler( void )
 				count reloaded with ulReloadValue.  Reset the
 				portNVIC_SYSTICK_LOAD_REG with whatever remains of this tick
 				period. */
-				if (low_power_sleep)
+				if (SLEEP_STOP == sleep_type)
+				{
+					// Todo
+					ulCalculatedLoadValue = ( ulTimerCountsForOneTick - 1UL );// - ( ulReloadValue - portNVIC_SYSTICK_CURRENT_VALUE_REG );
+				}
+				else if (SLEEP_LOW_POWER == sleep_type)
 				{
 					ulCalculatedLoadValue = ( ulTimerCountsForOneTick - 1UL ) - (( ulReloadValue - portNVIC_SYSTICK_CURRENT_VALUE_REG ) * LOW_POWER_TICK_HZ / configTICK_RATE_HZ);
 				}
@@ -680,7 +759,11 @@ void xPortSysTickHandler( void )
 				Work out how long the sleep lasted rounded to complete tick
 				periods (not the ulReload value which accounted for part
 				ticks). */
-				if (low_power_sleep)
+				if (SLEEP_STOP == sleep_type)
+				{
+					ulCompletedSysTickDecrements = (( xExpectedIdleTime * ulTimerCountsForOneTick ) * STOP_TICKS_RATIO) - portNVIC_SYSTICK_CURRENT_VALUE_REG;
+				}
+				else if (SLEEP_LOW_POWER == sleep_type)
 				{
 					ulCompletedSysTickDecrements = ( xExpectedIdleTime * LOW_POWER_TICK_HZ ) - (portNVIC_SYSTICK_CURRENT_VALUE_REG * LOW_POWER_TICKS_RATIO);
 				}
@@ -691,6 +774,11 @@ void xPortSysTickHandler( void )
 
 				/* How many complete tick periods passed while the processor
 				was waiting? */
+				if (SLEEP_STOP == sleep_type)
+				{
+					ulTimerCountsForOneTick = (configSYSTICK_CLOCK_HZ / configTICK_RATE_HZ);
+				}
+
 				ulCompleteTickPeriods = ulCompletedSysTickDecrements / ulTimerCountsForOneTick;
 
 				/* The reload value is set to whatever fraction of a single tick

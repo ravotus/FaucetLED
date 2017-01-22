@@ -99,5 +99,8 @@ try to turn on and draw more current. Currents were as follows before removing R
 1/21/2017: Run TIM2 at /1 clk with period of 255 because timer clock = 400kHz/16*2 = 50kHz. Then,
 PWM frequency = 50kHz / 255 = 196Hz. In full-power mode, PWM freq = (48MHz / 16) / 255 = 11.76kHz.
 
+Successfully added support for Stop2 mode (~35uA for Iuc). However, the TIM2 gpio when configured cause the current drawn
+to be much higher. Disabling TIM2 doesn't seem to help unless it's completely DeInit'd. 
+
 Need to investigate why it seems the current oscillates rapidly when I enabled SHDN (but had never looked at it before).
 Possibly the external opamp oscillating due to the piezo input?

@@ -17,6 +17,7 @@
 #define ADC_DEV				hadc1
 #define CRC_DEV				hcrc
 #define LED_TIMER_DEV		htim2
+#define LPTIM_DEV			hlptim1
 #define HAL_TICK_TIM_DEV	htim7
 #define HAL_TICK_TIM_IRQ	TIM7_IRQn
 #define OPAMP_DEV			hopamp1
@@ -24,12 +25,25 @@
 extern ADC_HandleTypeDef 	ADC_DEV;
 extern CRC_HandleTypeDef 	CRC_DEV;
 extern TIM_HandleTypeDef 	LED_TIMER_DEV;
+extern LPTIM_HandleTypeDef	LPTIM_DEV;
 extern TIM_HandleTypeDef	HAL_TICK_TIM_DEV;
 extern OPAMP_HandleTypeDef	OPAMP_DEV;
 
 #define APP_LOW_POWER_TICK_HZ	400000
 #define APP_LOW_POWER_MSI_RANGE	RCC_MSIRANGE_2
 
-uint8_t app_can_low_power_sleep(void);
+#define LPTIM_PERIOD	0xffff
+#define LPTIM_CLK_HZ	32000
+#define LPTIM_CLK_DIV	1
+
+typedef enum
+{
+	SLEEP_NONE,
+	SLEEP_LOW_POWER,
+	SLEEP_STOP,
+	NUM_SLEEP_TYPES
+} SleepType_E;
+
+SleepType_E app_get_sleep_capability(void);
 
 #endif /* __APP_H__ */

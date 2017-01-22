@@ -114,45 +114,7 @@ void vApplicationMallocFailedHook(void)
 /* USER CODE BEGIN PREPOSTSLEEP */
 void PreSleepProcessing(uint32_t *ulExpectedIdleTime)
 {
-	RCC_OscInitTypeDef RCC_OscInitStruct;
 
-	*ulExpectedIdleTime = 0;
-
-	// Configure MSI for lower speed which will automatically scale the sysclk.
-	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
-	RCC_OscInitStruct.MSIState = RCC_MSI_ON;
-	RCC_OscInitStruct.HSIState = RCC_HSI_OFF;
-	RCC_OscInitStruct.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
-	RCC_OscInitStruct.MSIClockRange = APP_LOW_POWER_MSI_RANGE;
-	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_OFF;
-	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-	{
-		Error_Handler();
-	}
-
-	// Use low-power voltage scaling mode.
-	if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE2) != HAL_OK)
-	{
-		Error_Handler();
-	}
-
-	// Prevent the STM32 HAL tick timer from waking us up.
-	HAL_TIM_Base_Stop_IT(&HAL_TICK_TIM_DEV);
-	HAL_NVIC_DisableIRQ(HAL_TICK_TIM_IRQ);
-
-	HAL_PWR_EnterSLEEPMode( PWR_LOWPOWERREGULATOR_ON, PWR_SLEEPENTRY_WFI );
-
-	// Post-sleep processing
-	HAL_PWREx_DisableLowPowerRunMode();
-
-	// Return to high-performance voltage scaling mode.
-	if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1) != HAL_OK)
-	{
-		Error_Handler();
-	}
-
-	// Re-initialize core clock configuration. This will also resume the HAL tick.
-	SystemClock_Config();
 }
 
 void PostSleepProcessing(uint32_t *ulExpectedIdleTime)

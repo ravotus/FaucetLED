@@ -27,16 +27,20 @@ static uint32_t adc_cal_value;
 volatile static int16_t adc_data[NUM_ADC_SAMPLES];
 static float adc_data_f[NUM_ADC_SAMPLES];
 
-uint8_t app_can_low_power_sleep(void)
+SleepType_E app_get_sleep_capability(void)
 {
 	uint32_t adc_state = HAL_ADC_GetState(&ADC_DEV);
 	if ((adc_state & HAL_ADC_STATE_REG_BUSY) || (adc_state & HAL_ADC_STATE_INJ_BUSY))
 	{
-		return 0;
+		return SLEEP_NONE;
+	}
+	else if (0)
+	{
+		return SLEEP_LOW_POWER;
 	}
 	else
 	{
-		return 1;
+		return SLEEP_STOP;
 	}
 }
 
