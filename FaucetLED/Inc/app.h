@@ -3,7 +3,7 @@
 
 #include "stm32l4xx_hal.h"
 
-#define NUM_ADC_SAMPLES				128
+#define NUM_ADC_SAMPLES				64
 #define ADC_TRIGGER_STDEV_V			0.1f
 #define NUM_SAMPLES_FOR_TRIGGER		5
 
