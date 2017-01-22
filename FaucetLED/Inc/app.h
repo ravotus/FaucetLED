@@ -23,7 +23,6 @@
 #define OPAMP_DEV			hopamp1
 
 extern ADC_HandleTypeDef 	ADC_DEV;
-extern CRC_HandleTypeDef 	CRC_DEV;
 extern TIM_HandleTypeDef 	LED_TIMER_DEV;
 extern LPTIM_HandleTypeDef	LPTIM_DEV;
 extern TIM_HandleTypeDef	HAL_TICK_TIM_DEV;

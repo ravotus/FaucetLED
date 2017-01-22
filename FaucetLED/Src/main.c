@@ -56,8 +56,6 @@
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 
-CRC_HandleTypeDef hcrc;
-
 LPTIM_HandleTypeDef hlptim1;
 
 OPAMP_HandleTypeDef hopamp1;
@@ -76,7 +74,6 @@ void Error_Handler(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 void MX_ADC1_Init(void);
-static void MX_CRC_Init(void);
 static void MX_OPAMP1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_LPTIM1_Init(void);
@@ -113,7 +110,6 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_ADC1_Init();
-  MX_CRC_Init();
   MX_OPAMP1_Init();
   MX_TIM2_Init();
   MX_LPTIM1_Init();
@@ -306,26 +302,6 @@ void MX_ADC1_Init(void)
   sConfigInjected.InjectedRank = 2;
   sConfigInjected.InjectedSamplingTime = ADC_SAMPLETIME_24CYCLES_5;
   if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-}
-
-/* CRC init function */
-static void MX_CRC_Init(void)
-{
-
-  hcrc.Instance = CRC;
-  hcrc.Init.DefaultPolynomialUse = DEFAULT_POLYNOMIAL_DISABLE;
-  hcrc.Init.DefaultInitValueUse = DEFAULT_INIT_VALUE_DISABLE;
-  hcrc.Init.GeneratingPolynomial = 49;
-  hcrc.Init.CRCLength = CRC_POLYLENGTH_8B;
-  hcrc.Init.InitValue = 0;
-  hcrc.Init.InputDataInversionMode = CRC_INPUTDATA_INVERSION_BYTE;
-  hcrc.Init.OutputDataInversionMode = CRC_OUTPUTDATA_INVERSION_ENABLE;
-  hcrc.InputDataFormat = CRC_INPUTDATA_FORMAT_BYTES;
-  if (HAL_CRC_Init(&hcrc) != HAL_OK)
   {
     Error_Handler();
   }

@@ -10,8 +10,6 @@
 #include "drivers/led.h"
 #include "main.h"
 
-#include "stm32l4xx_hal_crc.h"
-
 // No idea why this isn't included in any headers from ST...
 #define VREFINT_CAL	((volatile uint16_t*)0x1FFF75AAU)
 
