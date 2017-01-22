@@ -31,7 +31,7 @@ SleepType_E app_get_sleep_capability(void)
 	{
 		return SLEEP_NONE;
 	}
-	else if (0)
+	else if (led_get_active())
 	{
 		return SLEEP_LOW_POWER;
 	}

@@ -637,17 +637,13 @@ void xPortSysTickHandler( void )
 			}
 			else
 			{
-				RCC_OscInitTypeDef RCC_OscInitStruct;
-
 				__HAL_FLASH_SLEEP_POWERDOWN_ENABLE();
 
-				// Prevent the STM32 HAL tick timer from waking us up.
 				HAL_SuspendTick();
-				HAL_TIM_Base_Stop_IT(&HAL_TICK_TIM_DEV);
-				HAL_NVIC_DisableIRQ(HAL_TICK_TIM_IRQ);
 
 				if (SLEEP_LOW_POWER == sleep_type)
 				{
+					RCC_OscInitTypeDef RCC_OscInitStruct;
 					// Configure MSI for lower speed which will automatically scale the sysclk.
 					RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
 					RCC_OscInitStruct.MSIState = RCC_MSI_ON;
@@ -666,6 +662,11 @@ void xPortSysTickHandler( void )
 						Error_Handler();
 					}
 
+					// Prevent the STM32 HAL tick timer from waking us up, since the RCC HAL function
+					// likes to re-enable it.
+					HAL_TIM_Base_Stop_IT(&HAL_TICK_TIM_DEV);
+					HAL_NVIC_DisableIRQ(HAL_TICK_TIM_IRQ);
+
 					HAL_PWR_EnterSLEEPMode( PWR_LOWPOWERREGULATOR_ON, PWR_SLEEPENTRY_WFI );
 
 					// Post-sleep processing
@@ -678,6 +679,7 @@ void xPortSysTickHandler( void )
 					}
 
 					// Re-initialize core clock configuration. This will also resume the HAL tick.
+					extern void SystemClock_Config(void);
 					SystemClock_Config();
 				}
 				else // SLEEP_STOP
@@ -692,14 +694,9 @@ void xPortSysTickHandler( void )
 					// Configure LPTIM1 to wake us, since the systick will be stopped due to core stop.
 					HAL_LPTIM_OnePulse_Start(&LPTIM_DEV, ulReloadValue, ulReloadValue);
 					__HAL_LPTIM_ENABLE_IT(&LPTIM_DEV, LPTIM_IT_CMPM);
-					//HAL_LPTIM_TimeOut_Start_IT(&LPTIM_DEV, LPTIM_PERIOD, ulReloadValue);
-
-					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
 
 					// Per the datasheet, we can enter Stop2 mode directly from Run mode.
 					HAL_PWREx_EnterSTOP2Mode(PWR_STOPENTRY_WFI);
-
-					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
 				}
 			}
 
@@ -724,8 +721,8 @@ void xPortSysTickHandler( void )
 				period. */
 				if (SLEEP_STOP == sleep_type)
 				{
-					// Todo
-					ulCalculatedLoadValue = ( ulTimerCountsForOneTick - 1UL );// - ( ulReloadValue - portNVIC_SYSTICK_CURRENT_VALUE_REG );
+					// For now, don't bother to compensate for any extra time that may have elapsed since the LPTIM woke us.
+					ulCalculatedLoadValue = ( ulTimerCountsForOneTick - 1UL );
 				}
 				else if (SLEEP_LOW_POWER == sleep_type)
 				{

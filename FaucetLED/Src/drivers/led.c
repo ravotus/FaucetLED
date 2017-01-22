@@ -1,7 +1,7 @@
-#include <stdbool.h>
 #include "stm32l4xx_hal.h"
 #include "drivers/led.h"
 
+static bool active = false;
 static bool gpio_initialized = false;
 static uint32_t timer_period = 0;
 static TIM_HandleTypeDef *timer_dev = NULL;
@@ -39,6 +39,7 @@ void led_disable(void)
 		return;
 	}
 
+	active = false;
 	gpio_initialized = false;
 
 	(void)HAL_TIM_PWM_Stop(timer_dev, TIM_CHANNEL_1);
@@ -46,6 +47,18 @@ void led_disable(void)
 	(void)HAL_TIM_PWM_Stop(timer_dev, TIM_CHANNEL_3);
 
 	HAL_GPIO_DeInit(GPIOA, GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_5);
+}
+
+bool led_get_active(void)
+{
+	if (!timer_dev)
+	{
+		return false;
+	}
+	else
+	{
+		return active;
+	}
 }
 
 enum led_error led_set(const struct led_color *color)
@@ -62,6 +75,8 @@ enum led_error led_set(const struct led_color *color)
 	{
 		return LED_EINVAL;
 	}
+
+	active = true;
 
 	if (!gpio_initialized)
 	{

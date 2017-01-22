@@ -1,6 +1,7 @@
 #ifndef __LED_DRIVER_H__
 #define __LED_DRIVER_H__
 
+#include <stdbool.h>
 #include <stdint.h>
 #include "stm32l4xx_hal_def.h"
 
@@ -28,6 +29,7 @@ struct led_color
 enum led_error led_init(TIM_HandleTypeDef *dev, uint32_t period);
 enum led_error led_deinit(void);
 void led_disable(void);
+bool led_get_active(void);
 enum led_error led_set(const struct led_color *color);
 
 #endif //__LED_DRIVER_H__
