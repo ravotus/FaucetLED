@@ -1,6 +1,8 @@
+#include <stdbool.h>
 #include "stm32l4xx_hal.h"
 #include "drivers/led.h"
 
+static bool gpio_initialized = false;
 static uint32_t timer_period = 0;
 static TIM_HandleTypeDef *timer_dev = NULL;
 
@@ -30,6 +32,22 @@ enum led_error led_deinit(void)
 	return LED_EOK;
 }
 
+void led_disable(void)
+{
+	if (! timer_dev)
+	{
+		return;
+	}
+
+	gpio_initialized = false;
+
+	(void)HAL_TIM_PWM_Stop(timer_dev, TIM_CHANNEL_1);
+	(void)HAL_TIM_PWM_Stop(timer_dev, TIM_CHANNEL_2);
+	(void)HAL_TIM_PWM_Stop(timer_dev, TIM_CHANNEL_3);
+
+	HAL_GPIO_DeInit(GPIOA, GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_5);
+}
+
 enum led_error led_set(const struct led_color *color)
 {
 	TIM_OC_InitTypeDef sConfigOC;
@@ -43,6 +61,13 @@ enum led_error led_set(const struct led_color *color)
 	else if (NULL == color)
 	{
 		return LED_EINVAL;
+	}
+
+	if (!gpio_initialized)
+	{
+		extern void HAL_TIM_MspPostInit(TIM_HandleTypeDef* htim);
+		HAL_TIM_MspPostInit(timer_dev);
+		gpio_initialized = true;
 	}
 
 	sConfigOC.OCMode = TIM_OCMODE_PWM1;

@@ -102,5 +102,7 @@ PWM frequency = 50kHz / 255 = 196Hz. In full-power mode, PWM freq = (48MHz / 16)
 Successfully added support for Stop2 mode (~35uA for Iuc). However, the TIM2 gpio when configured cause the current drawn
 to be much higher. Disabling TIM2 doesn't seem to help unless it's completely DeInit'd. 
 
+1/22/2017: Worked around the TIM2 issue by just setting the GPIO back to analog when disabled. Seems to work fine.
+
 Need to investigate why it seems the current oscillates rapidly when I enabled SHDN (but had never looked at it before).
 Possibly the external opamp oscillating due to the piezo input?

@@ -27,6 +27,7 @@ struct led_color
 
 enum led_error led_init(TIM_HandleTypeDef *dev, uint32_t period);
 enum led_error led_deinit(void);
+void led_disable(void);
 enum led_error led_set(const struct led_color *color);
 
 #endif //__LED_DRIVER_H__

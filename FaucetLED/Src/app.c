@@ -18,9 +18,6 @@
 #define NOTIFY_ADC_COMPLETE			0x01
 #define NOTIFY_ADC_INJ_COMPLETE		0x02
 
-const struct led_color black = {.red = 0, .green = 0, .blue = 0};
-const struct led_color blue = {.red = 0, .green = 0, .blue = 255};
-
 static TaskHandle_t adc_task_handle = NULL;
 static uint32_t adc_cal_value;
 
@@ -259,7 +256,7 @@ void AdcReaderTask(const void *arg)
 			}
 			else
 			{
-				led_set(&black);
+				led_disable();
 			}
 		}
 

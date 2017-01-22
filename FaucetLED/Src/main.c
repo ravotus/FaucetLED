@@ -121,6 +121,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   BSP_LED_Init(LED3);
   led_init(&LED_TIMER_DEV, LED_TIM_PERIOD);
+  led_disable();
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -423,8 +424,7 @@ static void MX_TIM2_Init(void)
     Error_Handler();
   }
 
-  // TODO: Stop current is much higher with the GPIO configured?
-  //HAL_TIM_MspPostInit(&htim2);
+  HAL_TIM_MspPostInit(&htim2);
 
 }
 
