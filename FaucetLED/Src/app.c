@@ -189,6 +189,9 @@ void AdcReaderTask(const void *arg)
 		// R_Kelvin = 1/(1/T0 + 1/B*ln(Rtherm/R_T0)), B = 3984, T0 = 25C
 		float temperature_C = 1/(1/298.15f + (1.0f/THERMISTOR_B)*logf(thermistor_R / THERMISTOR_T0)) - 273.15f;
 
+		// Wait a bit to ensure any transients from disabling the thermistor supply have gone.
+		osDelay(5);
+
 		// Begin reading the shock sensor.
 		if (HAL_ADC_Start_DMA(&ADC_DEV, (uint32_t *)adc_data, NUM_ADC_SAMPLES) != HAL_OK)
 		{
