@@ -53,6 +53,20 @@
 #define LED_TIM_PERIOD 255
 #define LED_TIM_CLK_DIV 1
 
+#define VCC_2_IN_Pin GPIO_PIN_0
+#define VCC_2_IN_GPIO_Port GPIOA
+#define LED_G_Pin GPIO_PIN_1
+#define LED_G_GPIO_Port GPIOA
+#define LED_B_Pin GPIO_PIN_2
+#define LED_B_GPIO_Port GPIOA
+#define VCC_2_BUF_Pin GPIO_PIN_3
+#define VCC_2_BUF_GPIO_Port GPIOA
+#define PIEZO_AMP_Pin GPIO_PIN_4
+#define PIEZO_AMP_GPIO_Port GPIOA
+#define LED_R_Pin GPIO_PIN_5
+#define LED_R_GPIO_Port GPIOA
+#define THERM_SENSE_Pin GPIO_PIN_6
+#define THERM_SENSE_GPIO_Port GPIOA
 #define AMP_SHDN_Pin GPIO_PIN_7
 #define AMP_SHDN_GPIO_Port GPIOA
 #define THERM_PWR_Pin GPIO_PIN_8
