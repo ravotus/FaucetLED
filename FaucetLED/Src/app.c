@@ -102,6 +102,7 @@ void AdcReaderTask(const void *arg)
 {
 	uint32_t task_notify_val;
 	uint32_t last_wake_time;
+	uint32_t last_led_update;
 	uint8_t num_shocks_last = 0;
 
 	adc_task_handle = xTaskGetCurrentTaskHandle();
@@ -115,6 +116,7 @@ void AdcReaderTask(const void *arg)
 	HAL_ADC_DeInit(&ADC_DEV);
 
 	last_wake_time = osKernelSysTick();
+	last_led_update = last_wake_time;
 
 	while (1)
 	{
@@ -242,11 +244,12 @@ void AdcReaderTask(const void *arg)
 			{
 				num_shocks_last++;
 			}
-			else
+			else if ((osKernelSysTick() - last_led_update) > 1000)
 			{
 				struct led_color color;
 				compute_led_color(temperature_C, &color);
 				led_set(&color);
+				last_led_update = osKernelSysTick();
 			}
 		}
 		else
@@ -258,6 +261,7 @@ void AdcReaderTask(const void *arg)
 			else
 			{
 				led_disable();
+				last_led_update = 0;
 			}
 		}
 
