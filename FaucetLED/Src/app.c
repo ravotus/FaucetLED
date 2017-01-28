@@ -5,6 +5,7 @@
 #include "arm_math.h"
 #include "arm_const_structs.h"
 #include "cmsis_os.h"
+#include "stm32l4xx_nucleo_32.h"
 
 #include "app.h"
 #include "drivers/led.h"
@@ -12,6 +13,10 @@
 
 // No idea why this isn't included in any headers from ST...
 #define VREFINT_CAL	((volatile uint16_t*)0x1FFF75AAU)
+
+#define FLASH_PAGE_127   ((uint32_t)0x0803F800) /* Base @ of Page 127, 2 Kbytes */
+
+#define MAGIC_FLASH_WRITTEN 0xA5A5A5A5A5A5A5A5
 
 #define NOTIFY_ADC_COMPLETE			0x01
 #define NOTIFY_ADC_INJ_COMPLETE		0x02
@@ -21,6 +26,17 @@ static uint32_t adc_cal_value;
 
 volatile static int16_t adc_data[NUM_ADC_SAMPLES];
 static float adc_data_f[NUM_ADC_SAMPLES];
+
+struct FlashData_t
+{
+	uint64_t flash_code;
+	float piezo_rms_hist[128];
+	uint32_t index;
+};
+
+volatile struct FlashData_t sample_data;
+
+#define FLASH_DATA_IN_FLASH ((volatile struct FlashData_t *)FLASH_PAGE_127)
 
 SleepType_E app_get_sleep_capability(void)
 {
@@ -114,6 +130,36 @@ void AdcReaderTask(const void *arg)
 
 	adc_cal_value = HAL_ADCEx_Calibration_GetValue(&ADC_DEV, ADC_SINGLE_ENDED);
 	HAL_ADC_DeInit(&ADC_DEV);
+
+	if (FLASH_DATA_IN_FLASH->flash_code == MAGIC_FLASH_WRITTEN)
+	{
+		for (size_t i=0; i<10; ++i)
+		{
+			BSP_LED_Toggle(LED3);
+			osDelay(500);
+		}
+
+		HAL_FLASH_Unlock();
+
+		FLASH_EraseInitTypeDef EraseInitStruct;
+		EraseInitStruct.TypeErase   = FLASH_TYPEERASE_PAGES;
+		EraseInitStruct.Banks       = FLASH_BANK_1;
+		EraseInitStruct.Page        = 127;
+		EraseInitStruct.NbPages     = 1;
+
+		uint32_t err;
+		if (HAL_FLASHEx_Erase(&EraseInitStruct, &err) != HAL_OK)
+		{
+			Error_Handler();
+		}
+
+		HAL_FLASH_Lock();
+	}
+
+	sample_data.index = 0;
+	BSP_LED_On(LED3);
+	osDelay(5000);
+	BSP_LED_Off(LED3);
 
 	last_wake_time = osKernelSysTick();
 	last_led_update = last_wake_time;
@@ -238,6 +284,40 @@ void AdcReaderTask(const void *arg)
 		float stddev_V;
 		arm_std_f32((float *)adc_data_f, NUM_ADC_SAMPLES, &stddev_V);
 
+		sample_data.piezo_rms_hist[sample_data.index] = stddev_V;
+		++sample_data.index;
+		if (sample_data.index == 50)
+		{
+			sample_data.index = 60;
+			BSP_LED_On(LED3);
+			osDelay(5000);
+			BSP_LED_Off(LED3);
+		}
+		else if(sample_data.index == 110)
+		{
+			sample_data.flash_code = MAGIC_FLASH_WRITTEN;
+			HAL_FLASH_Unlock();
+			__HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_OPTVERR);
+			uint64_t *flash_data = (uint64_t *)&sample_data;
+			for (size_t i=0; i<(sizeof(sample_data) + 1); i += sizeof(uint64_t))
+			{
+				if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, FLASH_PAGE_127 + i, *flash_data) != HAL_OK)
+				{
+					Error_Handler();
+				}
+
+				++flash_data;
+			}
+
+			HAL_FLASH_Lock();
+
+			while(1)
+			{
+				BSP_LED_Toggle(LED3);
+				osDelay(500);
+			}
+		}
+#if 0
 		if (stddev_V > ADC_TRIGGER_STDEV_V)
 		{
 			if (num_shocks_last < NUM_SAMPLES_FOR_TRIGGER)
@@ -264,7 +344,7 @@ void AdcReaderTask(const void *arg)
 				last_led_update = 0;
 			}
 		}
-
+#endif
 		osDelayUntil(&last_wake_time, 100);
 	}
 }
