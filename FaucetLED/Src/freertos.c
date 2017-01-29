@@ -68,8 +68,6 @@
 #define USED
 #endif
 const uint32_t USED uxTopUsedPriority = configMAX_PRIORITIES - 1;
-
-extern void SystemClock_Config(void);
 /* USER CODE END FunctionPrototypes */
 
 /* Pre/Post sleep processing prototypes */
