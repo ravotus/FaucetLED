@@ -14,7 +14,6 @@
 #define VREFINT_CAL	((volatile uint16_t*)0x1FFF75AAU)
 
 #define NOTIFY_ADC_COMPLETE			0x01
-#define NOTIFY_ADC_INJ_COMPLETE		0x02
 
 static TaskHandle_t adc_task_handle = NULL;
 static uint32_t adc_cal_value;
@@ -47,25 +46,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 	{
 		xTaskNotifyFromISR(adc_task_handle, NOTIFY_ADC_COMPLETE,
 				eSetBits, &higher_prio_task_woken);
-		portYIELD_FROM_ISR(higher_prio_task_woken);
-	}
-}
-
-void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
-{
-	BaseType_t higher_prio_task_woken = pdFALSE;
-
-	if (adc_task_handle)
-	{
-		// We only want to set the complete bit once the entire sequence of injected
-		// conversions is finished. If the "End of Conversion Selection" happens to be
-		// set to End of Single Conversion (or both), we will get an interrupt for every
-		// injected channel that completes.
-		if ( __HAL_ADC_GET_FLAG(hadc, ADC_FLAG_JEOS))
-		{
-			xTaskNotifyFromISR(adc_task_handle, NOTIFY_ADC_INJ_COMPLETE,
-					eSetBits, &higher_prio_task_woken);
-		}
 		portYIELD_FROM_ISR(higher_prio_task_woken);
 	}
 }
@@ -103,6 +83,11 @@ void AdcReaderTask(const void *arg)
 	uint32_t task_notify_val;
 	uint32_t last_wake_time;
 	uint32_t last_led_update;
+	ADC_ChannelConfTypeDef adc_channel_config;
+	adc_channel_config.Rank = 1;
+	adc_channel_config.SingleDiff = ADC_SINGLE_ENDED;
+	adc_channel_config.OffsetNumber = ADC_OFFSET_NONE;
+	adc_channel_config.Offset = 0;
 	uint8_t num_shocks_last = 0;
 
 	adc_task_handle = xTaskGetCurrentTaskHandle();
@@ -120,12 +105,6 @@ void AdcReaderTask(const void *arg)
 
 	while (1)
 	{
-		// Power the thermistor to measure temperature
-		HAL_GPIO_WritePin(THERM_PWR_GPIO_Port, THERM_PWR_Pin, GPIO_PIN_SET);
-
-		// The thermistor has a long rise time due to the cable.
-		osDelay(20);
-
 		// Enable the external opamp and give it some time to settle. It needs 3.5us min.
 		HAL_GPIO_WritePin(AMP_SHDN_GPIO_Port, AMP_SHDN_Pin, GPIO_PIN_SET);
 		// Start the internal opamp which buffers Vcc/2.
@@ -133,6 +112,14 @@ void AdcReaderTask(const void *arg)
 
 		extern void MX_ADC1_Init(void);
 		MX_ADC1_Init();
+
+		// Configure the Vrefint channel while the ADC is disabled (required by HAL).
+		adc_channel_config.Channel = ADC_CHANNEL_VREFINT;
+		adc_channel_config.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+		if (HAL_ADC_ConfigChannel(&ADC_DEV, &adc_channel_config) != HAL_OK)
+		{
+			Error_Handler();
+		}
 
 		// Workaround HAL bug which requires the ADC to be enabled to set the calibration
 		// but yet there is no way to fully enable it without starting a conversion.
@@ -148,14 +135,14 @@ void AdcReaderTask(const void *arg)
 
 		// First read the injected group which includes the internal voltage reference
 		// and the external temperature sensor (thermistor).
-		if (HAL_ADCEx_InjectedStart_IT(&ADC_DEV) != HAL_OK)
+		if (HAL_ADC_Start_IT(&ADC_DEV) != HAL_OK)
 		{
 			Error_Handler();
 		}
 
 		if (xTaskNotifyWait(0, ULONG_MAX, &task_notify_val, 90))
 		{
-			if (! (task_notify_val & NOTIFY_ADC_INJ_COMPLETE))
+			if (! (task_notify_val & NOTIFY_ADC_COMPLETE))
 			{
 				Error_Handler();
 			}
@@ -166,31 +153,19 @@ void AdcReaderTask(const void *arg)
 			Error_Handler();
 		}
 
-		// Because oversampling is enabled for injected channels, the left align bit is ignored,
-		// so this data is right aligned
-		uint16_t vrefint_value = HAL_ADCEx_InjectedGetValue(&ADC_DEV, ADC_INJ_CHANNEL_VREF);
-		uint16_t exttemp_value = HAL_ADCEx_InjectedGetValue(&ADC_DEV, ADC_INJ_CHANNEL_EXTTEMP);
+		uint16_t vrefint_value = HAL_ADC_GetValue(&ADC_DEV);
 
-		(void)HAL_ADCEx_InjectedStop_IT(&ADC_DEV);
-
-		// No need for the thermistor now.
-		HAL_GPIO_WritePin(THERM_PWR_GPIO_Port, THERM_PWR_Pin, GPIO_PIN_RESET);
+		(void)HAL_ADC_Stop_IT(&ADC_DEV);
 
 		// Calculate the value of the internal reference.
 		float vdda_V = 3.0 * (*VREFINT_CAL) / vrefint_value;
 
-		// Calculation of input voltage
-		float temp_input_V = exttemp_value * vdda_V / 4096.0f;
-
-		// Calculate thermistor R = Vdda * 10k / Vin - 10k
-		float thermistor_R = vdda_V * THERMISTOR_R_DIVIDER / temp_input_V - THERMISTOR_R_DIVIDER;
-
-		// Finally use Steinhart-Hart approximation
-		// R_Kelvin = 1/(1/T0 + 1/B*ln(Rtherm/R_T0)), B = 3984, T0 = 25C
-		float temperature_C = 1/(1/298.15f + (1.0f/THERMISTOR_B)*logf(thermistor_R / THERMISTOR_T0)) - 273.15f;
-
-		// Wait a bit to ensure any transients from disabling the thermistor supply have gone.
-		osDelay(5);
+		adc_channel_config.Channel = ADC_CHANNEL_PIEZO_AMP;
+		adc_channel_config.SamplingTime = ADC_SAMPLETIME_6CYCLES_5;
+		if (HAL_ADC_ConfigChannel(&ADC_DEV, &adc_channel_config) != HAL_OK)
+		{
+			Error_Handler();
+		}
 
 		// Begin reading the shock sensor.
 		if (HAL_ADC_Start_DMA(&ADC_DEV, (uint32_t *)adc_data, NUM_ADC_SAMPLES) != HAL_OK)
@@ -214,10 +189,7 @@ void AdcReaderTask(const void *arg)
 		// For safety...
 		(void)HAL_ADC_Stop_DMA(&ADC_DEV);
 
-		(void)HAL_ADC_DeInit(&ADC_DEV);
-		(void)HAL_ADCEx_DisableVoltageRegulator(&ADC_DEV);
-		(void)HAL_ADCEx_EnterADCDeepPowerDownMode(&ADC_DEV);
-
+		// We can now disable the amplifier.
 		HAL_GPIO_WritePin(AMP_SHDN_GPIO_Port, AMP_SHDN_Pin, GPIO_PIN_RESET);
 		HAL_OPAMP_Stop(&OPAMP_DEV);
 
@@ -246,6 +218,56 @@ void AdcReaderTask(const void *arg)
 			}
 			else if ((osKernelSysTick() - last_led_update) > 1000)
 			{
+				// Power the thermistor to measure temperature
+				HAL_GPIO_WritePin(THERM_PWR_GPIO_Port, THERM_PWR_Pin, GPIO_PIN_SET);
+
+				// The thermistor has a long rise time due to the cable.
+				osDelay(20);
+
+				// Switch ADC channels
+				adc_channel_config.Channel = ADC_CHANNEL_THERMISTOR;
+				adc_channel_config.SamplingTime = ADC_SAMPLETIME_24CYCLES_5;
+				if (HAL_ADC_ConfigChannel(&ADC_DEV, &adc_channel_config) != HAL_OK)
+				{
+					Error_Handler();
+				}
+
+				// Read the thermistor
+				if (HAL_ADC_Start_IT(&ADC_DEV) != HAL_OK)
+				{
+					Error_Handler();
+				}
+
+				if (xTaskNotifyWait(0, ULONG_MAX, &task_notify_val, 90))
+				{
+					if (! (task_notify_val & NOTIFY_ADC_COMPLETE))
+					{
+						Error_Handler();
+					}
+				}
+				else
+				{
+					// Timeout
+					Error_Handler();
+				}
+
+				(void)HAL_ADC_Stop_IT(&ADC_DEV);
+
+				// No need for the thermistor now.
+				HAL_GPIO_WritePin(THERM_PWR_GPIO_Port, THERM_PWR_Pin, GPIO_PIN_RESET);
+
+				uint16_t exttemp_value = HAL_ADC_GetValue(&ADC_DEV);
+
+				// Calculation of input voltage
+				float temp_input_V = exttemp_value * vdda_V / 4096.0f;
+
+				// Calculate thermistor R = Vdda * 10k / Vin - 10k
+				float thermistor_R = vdda_V * THERMISTOR_R_DIVIDER / temp_input_V - THERMISTOR_R_DIVIDER;
+
+				// Finally use Steinhart-Hart approximation
+				// R_Kelvin = 1/(1/T0 + 1/B*ln(Rtherm/R_T0)), B = 3984, T0 = 25C
+				float temperature_C = 1/(1/298.15f + (1.0f/THERMISTOR_B)*logf(thermistor_R / THERMISTOR_T0)) - 273.15f;
+
 				struct led_color color;
 				compute_led_color(temperature_C, &color);
 				led_set(&color);
@@ -264,6 +286,10 @@ void AdcReaderTask(const void *arg)
 				last_led_update = 0;
 			}
 		}
+
+		(void)HAL_ADC_DeInit(&ADC_DEV);
+		(void)HAL_ADCEx_DisableVoltageRegulator(&ADC_DEV);
+		(void)HAL_ADCEx_EnterADCDeepPowerDownMode(&ADC_DEV);
 
 		osDelayUntil(&last_wake_time, 100);
 	}
