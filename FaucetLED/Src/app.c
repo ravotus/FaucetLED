@@ -21,6 +21,14 @@ static uint32_t adc_cal_value;
 volatile static int16_t adc_data[NUM_ADC_SAMPLES];
 static float adc_data_f[NUM_ADC_SAMPLES];
 
+float piezo_samples[NUM_SAMPLES_PIEZO_CAL];
+
+static const struct led_color green = {
+	.red = 0,
+	.green = 128,
+	.blue = 0
+};
+
 inline void piezo_amp_enable(void)
 {
 	// Enable the external opamp and give it some time to settle. It needs 3.5us min.
@@ -196,21 +204,25 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 void AdcReaderTask(const void *arg)
 {
 	uint32_t last_wake_time;
-	uint32_t last_led_update;
-	uint8_t num_shocks_last = 0;
+	uint32_t last_led_change;
+	float piezo_cal_stdev_V = -1.0f;
+	size_t piezo_cal_index = 0;
+	size_t piezo_buffer_index = 0;
 
 	adc_task_handle = xTaskGetCurrentTaskHandle();
 
+	// ADC is already initialized and active from main().
 	if (HAL_ADCEx_Calibration_Start(&ADC_DEV, ADC_SINGLE_ENDED) != HAL_OK)
 	{
 		Error_Handler();
 	}
-
 	adc_cal_value = HAL_ADCEx_Calibration_GetValue(&ADC_DEV, ADC_SINGLE_ENDED);
 	HAL_ADC_DeInit(&ADC_DEV);
 
+	led_set(&green);
+
 	last_wake_time = osKernelSysTick();
-	last_led_update = last_wake_time;
+	last_led_change = last_wake_time;
 
 	while (1)
 	{
@@ -243,37 +255,51 @@ void AdcReaderTask(const void *arg)
 		piezo_amp_disable();
 
 		float stdev_V = compute_stdev_from_samples((int16_t *)adc_data, adc_ref_V);
-		if (stdev_V > ADC_TRIGGER_STDEV_V)
+
+		if (piezo_cal_index < NUM_SAMPLES_PIEZO_CAL)
 		{
-			if (num_shocks_last < NUM_SAMPLES_FOR_TRIGGER)
+			piezo_samples[piezo_cal_index] = stdev_V;
+			if (++piezo_cal_index == NUM_SAMPLES_PIEZO_CAL)
 			{
-				num_shocks_last++;
-			}
-			else if ((osKernelSysTick() - last_led_update) > 1000)
-			{
-				thermistor_enable();
-				adc_select_channel(ADC_CHANNEL_THERMISTOR, ADC_SAMPLETIME_24CYCLES_5);
-				adc_perform_conversion();
-				thermistor_disable();
-
-				float temperature_C = compute_thermistor_temp_C(HAL_ADC_GetValue(&ADC_DEV), adc_ref_V);
-
-				struct led_color color;
-				compute_led_color(temperature_C, &color);
-				led_set(&color);
-				last_led_update = osKernelSysTick();
+				arm_mean_f32(piezo_samples, NUM_SAMPLES_PIEZO_CAL, &piezo_cal_stdev_V);
+				memset(piezo_samples, 0, sizeof(piezo_samples));
+				led_disable();
 			}
 		}
 		else
 		{
-			if (num_shocks_last > 0)
+			piezo_samples[piezo_buffer_index] = stdev_V;
+			if (++piezo_buffer_index >= NUM_SAMPLES_PIEZO_AVG)
 			{
-				num_shocks_last--;
+				piezo_buffer_index = 0;
 			}
-			else
+
+			float avg_stdev_V;
+			arm_mean_f32(piezo_samples, NUM_SAMPLES_PIEZO_AVG, &avg_stdev_V);
+
+			uint32_t ticks = osKernelSysTick();
+			if ((ticks - last_led_change) > 1000)
 			{
-				led_disable();
-				last_led_update = 0;
+				if ((avg_stdev_V > piezo_cal_stdev_V) &&
+				   ((avg_stdev_V - piezo_cal_stdev_V) > ADC_TRIGGER_STDEV_V))
+				{
+					thermistor_enable();
+					adc_select_channel(ADC_CHANNEL_THERMISTOR, ADC_SAMPLETIME_24CYCLES_5);
+					adc_perform_conversion();
+					thermistor_disable();
+
+					float temperature_C = compute_thermistor_temp_C(HAL_ADC_GetValue(&ADC_DEV), adc_ref_V);
+
+					struct led_color color;
+					compute_led_color(temperature_C, &color);
+					led_set(&color);
+					last_led_change = ticks;
+				}
+				else if (led_get_active())
+				{
+					led_disable();
+					last_led_change = ticks;
+				}
 			}
 		}
 

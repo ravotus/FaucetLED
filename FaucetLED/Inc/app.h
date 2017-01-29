@@ -5,7 +5,12 @@
 
 #define NUM_ADC_SAMPLES				128
 #define ADC_TRIGGER_STDEV_V			0.1f
-#define NUM_SAMPLES_FOR_TRIGGER		5
+#define NUM_SAMPLES_PIEZO_CAL		8
+#define NUM_SAMPLES_PIEZO_AVG		4
+
+#if NUM_SAMPLES_PIEZO_AVG > NUM_SAMPLES_PIEZO_CAL
+#error "Number of calibration samples must be >= number of regular avg samples."
+#endif
 
 #define ADC_CHANNEL_PIEZO_AMP		ADC_CHANNEL_9
 #define ADC_CHANNEL_THERMISTOR		ADC_CHANNEL_11
