@@ -236,7 +236,7 @@ void AdcReaderTask(const void *arg)
 		adc_perform_conversion();
 
 		// Calculate the value of the internal reference.
-		float adc_ref_V = 3.0 * (*VREFINT_CAL) / HAL_ADC_GetValue(&ADC_DEV);
+		float adc_ref_V = 3.0f * (*VREFINT_CAL) / HAL_ADC_GetValue(&ADC_DEV);
 
 		adc_select_channel(ADC_CHANNEL_PIEZO_AMP, ADC_SAMPLETIME_6CYCLES_5);
 		adc_perform_conversion_dma();
