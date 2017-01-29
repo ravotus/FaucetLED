@@ -223,10 +223,12 @@ void AdcReaderTask(const void *arg)
 
 	last_wake_time = osKernelSysTick();
 	last_led_change = last_wake_time;
+	piezo_amp_enable();
 
 	while (1)
 	{
-		piezo_amp_enable();
+		// TODO
+		//piezo_amp_enable();
 
 		extern void MX_ADC1_Init(void);
 		MX_ADC1_Init();
@@ -252,7 +254,8 @@ void AdcReaderTask(const void *arg)
 
 		adc_select_channel(ADC_CHANNEL_PIEZO_AMP, ADC_SAMPLETIME_6CYCLES_5);
 		adc_perform_conversion_dma();
-		piezo_amp_disable();
+		// TODO
+		//piezo_amp_disable();
 
 		float stdev_V = compute_stdev_from_samples((int16_t *)adc_data, adc_ref_V);
 
