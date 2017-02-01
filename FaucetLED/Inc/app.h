@@ -4,12 +4,18 @@
 #include "stm32l4xx_hal.h"
 
 #define NUM_ADC_SAMPLES				128
-#define ADC_TRIGGER_STDEV_V			0.1f
+// Two standard deviations captures 95% of all samples.
+#define PIEZO_STDEV_SCALE_FACT		2.0f
+#define ADC_TRIGGER_THRESH_V		0.01f
+#define PIEZO_CAL_SCALE_FACT		0.95f
 #define NUM_SAMPLES_PIEZO_CAL		8
-#define NUM_SAMPLES_PIEZO_AVG		4
+#define NUM_SAMPLES_PIEZO_HIST		8
+#define NUM_SAMPLES_PIEZO_THRESH	7
 
 #if NUM_SAMPLES_PIEZO_AVG > NUM_SAMPLES_PIEZO_CAL
 #error "Number of calibration samples must be >= number of regular avg samples."
+#elif NUM_SAMPLES_PIEZO_THRESH > NUM_SAMPLES_PIEZO_HIST
+#error "Number of required samples must be <= sample history size."
 #endif
 
 #define ADC_CHANNEL_PIEZO_AMP		ADC_CHANNEL_9

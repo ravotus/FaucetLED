@@ -108,7 +108,7 @@ static void adc_perform_conversion_dma(void)
 	(void)HAL_ADC_Stop_DMA(&ADC_DEV);
 }
 
-static float compute_stdev_from_samples(int16_t *samples, uint16_t adc_ref_V)
+static float compute_sample_stdev(int16_t *samples, uint16_t adc_ref_V)
 {
 	// ADC data is required to be right-aligned because the injected channels
 	// have oversampling enabled.
@@ -257,7 +257,7 @@ void AdcReaderTask(const void *arg)
 		// TODO
 		//piezo_amp_disable();
 
-		float stdev_V = compute_stdev_from_samples((int16_t *)adc_data, adc_ref_V);
+		float stdev_V = PIEZO_STDEV_SCALE_FACT * compute_sample_stdev((int16_t *)adc_data, adc_ref_V);
 
 		if (piezo_cal_index < NUM_SAMPLES_PIEZO_CAL)
 		{
@@ -265,26 +265,32 @@ void AdcReaderTask(const void *arg)
 			if (++piezo_cal_index == NUM_SAMPLES_PIEZO_CAL)
 			{
 				arm_mean_f32(piezo_samples, NUM_SAMPLES_PIEZO_CAL, &piezo_cal_stdev_V);
+				piezo_cal_stdev_V *= PIEZO_CAL_SCALE_FACT;
+
 				memset(piezo_samples, 0, sizeof(piezo_samples));
 				led_disable();
 			}
 		}
 		else
 		{
-			piezo_samples[piezo_buffer_index] = stdev_V;
-			if (++piezo_buffer_index >= NUM_SAMPLES_PIEZO_AVG)
+			piezo_samples[piezo_buffer_index] = stdev_V - piezo_cal_stdev_V;
+			if (++piezo_buffer_index >= NUM_SAMPLES_PIEZO_HIST)
 			{
 				piezo_buffer_index = 0;
 			}
 
-			float avg_stdev_V;
-			arm_mean_f32(piezo_samples, NUM_SAMPLES_PIEZO_AVG, &avg_stdev_V);
-
 			uint32_t ticks = osKernelSysTick();
 			if ((ticks - last_led_change) > 1000)
 			{
-				if ((avg_stdev_V > piezo_cal_stdev_V) &&
-				   ((avg_stdev_V - piezo_cal_stdev_V) > ADC_TRIGGER_STDEV_V))
+				unsigned active = 0;
+				for (unsigned i=0; i<NUM_SAMPLES_PIEZO_HIST; ++i)
+				{
+					if (piezo_samples[i] > ADC_TRIGGER_THRESH_V)
+					{
+						active++;
+					}
+				}
+				if (active >= NUM_SAMPLES_PIEZO_THRESH)
 				{
 					thermistor_enable();
 					adc_select_channel(ADC_CHANNEL_THERMISTOR, ADC_SAMPLETIME_24CYCLES_5);
