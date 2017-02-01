@@ -57,6 +57,7 @@
 /*#define HAL_CRYP_MODULE_ENABLED   */
 /*#define HAL_DAC_MODULE_ENABLED   */
 /*#define HAL_DCMI_MODULE_ENABLED   */
+/*#define HAL_DMA2D_MODULE_ENABLED   */
 /*#define HAL_DFSDM_MODULE_ENABLED   */
 /*#define HAL_FIREWALL_MODULE_ENABLED   */
 /*#define HAL_HCD_MODULE_ENABLED   */
@@ -182,7 +183,7 @@
   */     
   
 #define  VDD_VALUE					  ((uint32_t)3300U) /*!< Value of VDD in mv */           
-#define  TICK_INT_PRIORITY            ((uint32_t)0U)    /*!< tick interrupt priority */            
+#define  TICK_INT_PRIORITY            ((uint32_t)5U)    /*!< tick interrupt priority */            
 #define  USE_RTOS                     0U     
 #define  PREFETCH_ENABLE              0U
 #define  INSTRUCTION_CACHE_ENABLE     1U
@@ -193,7 +194,16 @@
   * @brief Uncomment the line below to expanse the "assert_param" macro in the 
   *        HAL drivers code
   */
-/* #define USE_FULL_ASSERT    1 */
+/* #define USE_FULL_ASSERT    1U */
+
+/* ################## SPI peripheral configuration ########################## */
+
+/* CRC FEATURE: Use to activate CRC feature inside HAL SPI Driver
+ * Activated: CRC code is present inside driver
+ * Deactivated: CRC code cleaned from driver
+ */
+
+#define USE_SPI_CRC                   0U
 
 /* Includes ------------------------------------------------------------------*/
 /**
@@ -248,13 +258,21 @@
   #include "stm32l4xx_hal_dcmi.h"
 #endif /* HAL_DCMI_MODULE_ENABLED */
 
+#ifdef HAL_DMA2D_MODULE_ENABLED
+  #include "stm32l4xx_hal_dma2d.h"
+#endif /* HAL_DMA2D_MODULE_ENABLED */
+
 #ifdef HAL_FIREWALL_MODULE_ENABLED
   #include "stm32l4xx_hal_firewall.h"
-#endif /* HAL_FLASH_MODULE_ENABLED */
+#endif /* HAL_FIREWALL_MODULE_ENABLED */
 
 #ifdef HAL_FLASH_MODULE_ENABLED
   #include "stm32l4xx_hal_flash.h"
 #endif /* HAL_FLASH_MODULE_ENABLED */
+
+#ifdef HAL_HASH_MODULE_ENABLED
+  #include "stm32l4xx_hal_hash.h"
+#endif /* HAL_HASH_MODULE_ENABLED */
 
 #ifdef HAL_SRAM_MODULE_ENABLED
   #include "stm32l4xx_hal_sram.h"
@@ -269,95 +287,95 @@
 #endif /* HAL_NAND_MODULE_ENABLED */
 
 #ifdef HAL_I2C_MODULE_ENABLED
- #include "stm32l4xx_hal_i2c.h"
+  #include "stm32l4xx_hal_i2c.h"
 #endif /* HAL_I2C_MODULE_ENABLED */
 
 #ifdef HAL_IWDG_MODULE_ENABLED
- #include "stm32l4xx_hal_iwdg.h"
+  #include "stm32l4xx_hal_iwdg.h"
 #endif /* HAL_IWDG_MODULE_ENABLED */
 
 #ifdef HAL_LCD_MODULE_ENABLED
- #include "stm32l4xx_hal_lcd.h"
+  #include "stm32l4xx_hal_lcd.h"
 #endif /* HAL_LCD_MODULE_ENABLED */
 
 #ifdef HAL_LPTIM_MODULE_ENABLED
-#include "stm32l4xx_hal_lptim.h"
+  #include "stm32l4xx_hal_lptim.h"
 #endif /* HAL_LPTIM_MODULE_ENABLED */
 
 #ifdef HAL_OPAMP_MODULE_ENABLED
-#include "stm32l4xx_hal_opamp.h"
+  #include "stm32l4xx_hal_opamp.h"
 #endif /* HAL_OPAMP_MODULE_ENABLED */
 
 #ifdef HAL_PWR_MODULE_ENABLED
- #include "stm32l4xx_hal_pwr.h"
+  #include "stm32l4xx_hal_pwr.h"
 #endif /* HAL_PWR_MODULE_ENABLED */
 
 #ifdef HAL_QSPI_MODULE_ENABLED
- #include "stm32l4xx_hal_qspi.h"
+  #include "stm32l4xx_hal_qspi.h"
 #endif /* HAL_QSPI_MODULE_ENABLED */
 
 #ifdef HAL_RNG_MODULE_ENABLED
- #include "stm32l4xx_hal_rng.h"
+  #include "stm32l4xx_hal_rng.h"
 #endif /* HAL_RNG_MODULE_ENABLED */
 
 #ifdef HAL_RTC_MODULE_ENABLED
- #include "stm32l4xx_hal_rtc.h"
+  #include "stm32l4xx_hal_rtc.h"
 #endif /* HAL_RTC_MODULE_ENABLED */
 
 #ifdef HAL_SAI_MODULE_ENABLED
- #include "stm32l4xx_hal_sai.h"
+  #include "stm32l4xx_hal_sai.h"
 #endif /* HAL_SAI_MODULE_ENABLED */
 
 #ifdef HAL_SD_MODULE_ENABLED
- #include "stm32l4xx_hal_sd.h"
+  #include "stm32l4xx_hal_sd.h"
 #endif /* HAL_SD_MODULE_ENABLED */
 
 #ifdef HAL_SMBUS_MODULE_ENABLED
- #include "stm32l4xx_hal_smbus.h"
+  #include "stm32l4xx_hal_smbus.h"
 #endif /* HAL_SMBUS_MODULE_ENABLED */
 
 #ifdef HAL_SPI_MODULE_ENABLED
- #include "stm32l4xx_hal_spi.h"
+  #include "stm32l4xx_hal_spi.h"
 #endif /* HAL_SPI_MODULE_ENABLED */
 
 #ifdef HAL_SWPMI_MODULE_ENABLED
- #include "stm32l4xx_hal_swpmi.h"
+  #include "stm32l4xx_hal_swpmi.h"
 #endif /* HAL_SWPMI_MODULE_ENABLED */
 
 #ifdef HAL_TIM_MODULE_ENABLED
- #include "stm32l4xx_hal_tim.h"
+  #include "stm32l4xx_hal_tim.h"
 #endif /* HAL_TIM_MODULE_ENABLED */
 
 #ifdef HAL_TSC_MODULE_ENABLED
- #include "stm32l4xx_hal_tsc.h"
+  #include "stm32l4xx_hal_tsc.h"
 #endif /* HAL_TSC_MODULE_ENABLED */
 
 #ifdef HAL_UART_MODULE_ENABLED
- #include "stm32l4xx_hal_uart.h"
+  #include "stm32l4xx_hal_uart.h"
 #endif /* HAL_UART_MODULE_ENABLED */
 
 #ifdef HAL_USART_MODULE_ENABLED
- #include "stm32l4xx_hal_usart.h"
+  #include "stm32l4xx_hal_usart.h"
 #endif /* HAL_USART_MODULE_ENABLED */
 
 #ifdef HAL_IRDA_MODULE_ENABLED
- #include "stm32l4xx_hal_irda.h"
+  #include "stm32l4xx_hal_irda.h"
 #endif /* HAL_IRDA_MODULE_ENABLED */
 
 #ifdef HAL_SMARTCARD_MODULE_ENABLED
- #include "stm32l4xx_hal_smartcard.h"
+  #include "stm32l4xx_hal_smartcard.h"
 #endif /* HAL_SMARTCARD_MODULE_ENABLED */
 
 #ifdef HAL_WWDG_MODULE_ENABLED
- #include "stm32l4xx_hal_wwdg.h"
+  #include "stm32l4xx_hal_wwdg.h"
 #endif /* HAL_WWDG_MODULE_ENABLED */
 
 #ifdef HAL_PCD_MODULE_ENABLED
- #include "stm32l4xx_hal_pcd.h"
+  #include "stm32l4xx_hal_pcd.h"
 #endif /* HAL_PCD_MODULE_ENABLED */
 
 #ifdef HAL_HCD_MODULE_ENABLED
- #include "stm32l4xx_hal_hcd.h"
+  #include "stm32l4xx_hal_hcd.h"
 #endif /* HAL_HCD_MODULE_ENABLED */
 
 /* Exported macro ------------------------------------------------------------*/
