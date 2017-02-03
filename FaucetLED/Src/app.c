@@ -1,7 +1,9 @@
 #include <limits.h>
 #include <math.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
+
 #include "arm_math.h"
 #include "arm_const_structs.h"
 #include "cmsis_os.h"
