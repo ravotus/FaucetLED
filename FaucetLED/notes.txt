@@ -111,5 +111,12 @@ Itot: 0.00010471285480508996
 1/31/2017: Should be able to place QFN32 footprint for L4 inside of LQFP32 footprint for L0. They are pin-compatible.
 Probably don't need to be reading the reference voltage every time if we can assume Vdda will always be ~3.3V. 
 
+2/2/2017: Playing more with keeping certain opamps on. Seems the external draws the most (or is still driving/being driven).
+Ishdn total = 29.5e-6
+Ishdn ext opamp always on, int switched = 432e-6
+Ishdn int opamp always on, ext switched = 29.5e-6
+Ishdn neither: 437e-6
+Not temperature dependent
+
 Need to investigate why it seems the current oscillates rapidly when I enabled SHDN (but had never looked at it before).
 Possibly the external opamp oscillating due to the piezo input?
