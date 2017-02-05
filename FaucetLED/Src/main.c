@@ -63,6 +63,8 @@ OPAMP_HandleTypeDef hopamp1;
 TIM_HandleTypeDef htim2;
 
 osThreadId AdcReaderHandle;
+osThreadId LedHandle;
+osMessageQId LedCmdQHandle;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -78,6 +80,7 @@ static void MX_OPAMP1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_LPTIM1_Init(void);
 extern void AdcReaderTask(void const * argument);
+extern void LedTask(void const * argument);
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
                                 
@@ -134,12 +137,21 @@ int main(void)
 
   /* Create the thread(s) */
   /* definition and creation of AdcReader */
-  osThreadDef(AdcReader, AdcReaderTask, osPriorityNormal, 0, 128);
+  osThreadDef(AdcReader, AdcReaderTask, osPriorityBelowNormal, 0, 128);
   AdcReaderHandle = osThreadCreate(osThread(AdcReader), NULL);
+
+  /* definition and creation of Led */
+  osThreadDef(Led, LedTask, osPriorityNormal, 0, 128);
+  LedHandle = osThreadCreate(osThread(Led), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
+
+  /* Create the queue(s) */
+  /* definition and creation of LedCmdQ */
+  osMessageQDef(LedCmdQ, 4, LedCmd_S);
+  LedCmdQHandle = osMessageCreate(osMessageQ(LedCmdQ), NULL);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */

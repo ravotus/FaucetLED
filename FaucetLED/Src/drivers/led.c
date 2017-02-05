@@ -5,6 +5,7 @@ static bool active = false;
 static bool gpio_initialized = false;
 static uint32_t timer_period = 0;
 static TIM_HandleTypeDef *timer_dev = NULL;
+static struct led_color current_color;
 
 static inline enum led_error hal_to_led_error(HAL_StatusTypeDef hal_status)
 {
@@ -61,6 +62,22 @@ bool led_get_active(void)
 	}
 }
 
+enum led_error led_get(struct led_color *color)
+{
+	if (! timer_dev || (0 == timer_period))
+	{
+		return LED_EDISABLED;
+	}
+	else if (NULL == color)
+	{
+		return LED_EINVAL;
+	}
+
+	*color = current_color;
+
+	return LED_EOK;
+}
+
 enum led_error led_set(const struct led_color *color)
 {
 	TIM_OC_InitTypeDef sConfigOC;
@@ -84,6 +101,10 @@ enum led_error led_set(const struct led_color *color)
 		HAL_TIM_MspPostInit(timer_dev);
 		gpio_initialized = true;
 	}
+
+	// Enable shadow register for reload value to prevent weird flickering
+	// when adjusting PWM value.
+	timer_dev->Instance->CR1 |= TIM_CR1_ARPE;
 
 	sConfigOC.OCMode = TIM_OCMODE_PWM1;
 	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
@@ -134,6 +155,8 @@ enum led_error led_set(const struct led_color *color)
 		error_ret = hal_to_led_error(hal_status);
 		goto out_disable;
 	}
+
+	current_color = *color;
 
 	return error_ret;
 

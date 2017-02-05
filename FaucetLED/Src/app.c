@@ -17,6 +17,8 @@
 
 #define NOTIFY_ADC_COMPLETE			0x01
 
+extern QueueHandle_t LedCmdQHandle;
+
 static TaskHandle_t adc_task_handle = NULL;
 static uint32_t adc_cal_value;
 
@@ -210,6 +212,7 @@ void AdcReaderTask(const void *arg)
 	float piezo_cal_stdev_V = -1.0f;
 	size_t piezo_cal_index = 0;
 	size_t piezo_buffer_index = 0;
+	LedCmd_S led_cmd;
 
 	adc_task_handle = xTaskGetCurrentTaskHandle();
 
@@ -221,7 +224,9 @@ void AdcReaderTask(const void *arg)
 	adc_cal_value = HAL_ADCEx_Calibration_GetValue(&ADC_DEV, ADC_SINGLE_ENDED);
 	HAL_ADC_DeInit(&ADC_DEV);
 
-	led_set(&green);
+	led_cmd.id = LED_CMD_SET;
+	led_cmd.color = green;
+	(void)xQueueSend(LedCmdQHandle, &led_cmd, 0);
 
 	last_wake_time = osKernelSysTick();
 	last_led_change = last_wake_time;
@@ -301,14 +306,15 @@ void AdcReaderTask(const void *arg)
 
 					float temperature_C = compute_thermistor_temp_C(HAL_ADC_GetValue(&ADC_DEV), adc_ref_V);
 
-					struct led_color color;
-					compute_led_color(temperature_C, &color);
-					led_set(&color);
+					led_cmd.id = LED_CMD_FADE;
+					compute_led_color(temperature_C, &led_cmd.color);
+					(void)xQueueSend(LedCmdQHandle, &led_cmd, 0);
 					last_led_change = ticks;
 				}
 				else if (led_get_active())
 				{
-					led_disable();
+					led_cmd.id = LED_CMD_DISABLE;
+					(void)xQueueSend(LedCmdQHandle, &led_cmd, 0);
 					last_led_change = ticks;
 				}
 			}
@@ -319,5 +325,55 @@ void AdcReaderTask(const void *arg)
 		(void)HAL_ADCEx_EnterADCDeepPowerDownMode(&ADC_DEV);
 
 		osDelayUntil(&last_wake_time, 100);
+	}
+}
+
+inline int calc_color(int old_color, int new_color, int inc, int increments)
+{
+	// Important: This math relies on signed values
+	return old_color + (((new_color - old_color) * inc) / increments);
+}
+
+void LedTask(void const *arg)
+{
+	LedCmd_S command;
+	struct led_color old_color, fade_color;
+
+	while (xQueueReceive(LedCmdQHandle, &command, portMAX_DELAY))
+	{
+		switch (command.id)
+		{
+		case LED_CMD_DISABLE:
+			led_disable();
+			break;
+
+		case LED_CMD_SET:
+			led_set(&command.color);
+			break;
+
+		case LED_CMD_FADE:
+			if (led_get_active())
+			{
+				led_get(&old_color);
+
+				for (int i=1; i<=LED_FADE_INCREMENTS; ++i)
+				{
+					fade_color.red = calc_color(old_color.red, command.color.red, i, LED_FADE_INCREMENTS);
+					fade_color.green = calc_color(old_color.green, command.color.green, i, LED_FADE_INCREMENTS);
+					fade_color.blue = calc_color(old_color.blue, command.color.blue, i, LED_FADE_INCREMENTS);
+					led_set(&fade_color);
+
+					osDelay(25);
+				}
+			}
+			else
+			{
+				led_set(&command.color);
+			}
+			break;
+
+		default:
+			break;
+		}
 	}
 }
