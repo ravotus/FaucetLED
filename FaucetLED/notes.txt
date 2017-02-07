@@ -55,6 +55,14 @@ Cold:
 m = (255-1)/(0-21) = -12.095238095238095
 b = 1 - m * 21 = 255.0
 
+Independent Window Watchdog (IWDG)
+==================================
+Design for a 3s watchdog task, with timeout around 4s, window minimum of 2.5s:
+Let LSI_div = 32, LSI_min = 29kHz, LSI_max = 34kHz.
+Timeout = 4 * (34000/32) = 4250, but max of 4095 = 3.85s
+Window = 2.5 * (29000/32) = 2266
+=> Watchdog task < 3.85s, > (4095-2266)/(34000/32) = 1.72s
+
 Low-Power Modes
 ===============
 12/24/16: Low-power idle is working for the most part with HCLK=100kHz using the SysTick timer. Decided to treat each tick as 1s in low power mode,

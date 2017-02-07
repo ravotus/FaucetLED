@@ -56,6 +56,8 @@
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 
+IWDG_HandleTypeDef hiwdg;
+
 LPTIM_HandleTypeDef hlptim1;
 
 OPAMP_HandleTypeDef hopamp1;
@@ -64,6 +66,7 @@ TIM_HandleTypeDef htim2;
 
 osThreadId AdcReaderHandle;
 osThreadId LedHandle;
+osThreadId WatchdogHandle;
 osMessageQId LedCmdQHandle;
 
 /* USER CODE BEGIN PV */
@@ -79,8 +82,10 @@ void MX_ADC1_Init(void);
 static void MX_OPAMP1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_LPTIM1_Init(void);
+static void MX_IWDG_Init(void);
 extern void AdcReaderTask(void const * argument);
 extern void LedTask(void const * argument);
+void WatchdogTask(void const * argument);
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
                                 
@@ -116,8 +121,14 @@ int main(void)
   MX_OPAMP1_Init();
   MX_TIM2_Init();
   MX_LPTIM1_Init();
+  MX_IWDG_Init();
 
   /* USER CODE BEGIN 2 */
+#ifndef NDEBUG
+  // Stop IWDG when the core is halted by a debugger.
+  __HAL_DBGMCU_FREEZE_IWDG();
+#endif
+
   BSP_LED_Init(LED3);
   led_init(&LED_TIMER_DEV, LED_TIM_PERIOD);
   led_disable();
@@ -143,6 +154,10 @@ int main(void)
   /* definition and creation of Led */
   osThreadDef(Led, LedTask, osPriorityNormal, 0, 128);
   LedHandle = osThreadCreate(osThread(Led), NULL);
+
+  /* definition and creation of Watchdog */
+  osThreadDef(Watchdog, WatchdogTask, osPriorityHigh, 0, 128);
+  WatchdogHandle = osThreadCreate(osThread(Watchdog), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -277,6 +292,21 @@ void MX_ADC1_Init(void)
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+}
+
+/* IWDG init function */
+static void MX_IWDG_Init(void)
+{
+
+  hiwdg.Instance = IWDG;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_32;
+  hiwdg.Init.Window = 2266;
+  hiwdg.Init.Reload = 4095;
+  if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
   {
     Error_Handler();
   }
@@ -467,6 +497,19 @@ __weak void AdcReaderTask(void const * argument)
   /* USER CODE END 5 */ 
 }
 
+/* WatchdogTask function */
+void WatchdogTask(void const * argument)
+{
+  /* USER CODE BEGIN WatchdogTask */
+	while(1)
+	{
+		// Delay first to avoid triggering window after boot.
+		osDelay(3000);
+		HAL_IWDG_Refresh(&hiwdg);
+	}
+  /* USER CODE END WatchdogTask */
+}
+
 /**
   * @brief  Period elapsed callback in non blocking mode
   * @note   This function is called  when TIM7 interrupt took place, inside
@@ -496,8 +539,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler */
-	/* User can add his own implementation to report the HAL error return state */
 	BSP_LED_On(LED3);
+	osThreadSuspendAll();
 	while(1)
 	{
 	}
