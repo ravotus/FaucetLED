@@ -11,6 +11,6 @@
 *.pyc
 __pycache__/
 
-.metadata/
+.metadata*/
 .vscode/
 RemoteSystemsTempFiles/
