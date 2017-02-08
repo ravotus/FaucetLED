@@ -5,6 +5,7 @@
 *.mk
 *.list
 *.map
+*.launch
 *~
 
 *.pyc
