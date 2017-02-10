@@ -39,6 +39,7 @@
 /* USER CODE BEGIN 0 */
 void HardFault_Handler( void ) __attribute__( ( naked ) );
 
+__attribute__((used))
 void prvGetRegistersFromStack( uint32_t *pulFaultStackAddress )
 {
 /* These are volatile to try and prevent the compiler/linker optimising them
