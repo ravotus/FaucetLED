@@ -81,6 +81,8 @@ void vApplicationMallocFailedHook(void);
 /* USER CODE BEGIN 4 */
 void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName)
 {
+	(void)xTask;
+	(void)pcTaskName;
 	/* Run time stack overflow checking is performed if
 	configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2. This hook function is
 	called if a stack overflow is detected. */
@@ -110,15 +112,6 @@ void vApplicationMallocFailedHook(void)
 /* USER CODE END 5 */
 
 /* USER CODE BEGIN PREPOSTSLEEP */
-void PreSleepProcessing(uint32_t *ulExpectedIdleTime)
-{
-
-}
-
-void PostSleepProcessing(uint32_t *ulExpectedIdleTime)
-{
-	(void)ulExpectedIdleTime;
-}
 /* USER CODE END PREPOSTSLEEP */
 
 /* USER CODE BEGIN Application */

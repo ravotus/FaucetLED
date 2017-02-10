@@ -22,7 +22,7 @@ extern QueueHandle_t LedCmdQHandle;
 static TaskHandle_t adc_task_handle = NULL;
 static uint32_t adc_cal_value;
 
-volatile static int16_t adc_data[NUM_ADC_SAMPLES];
+static volatile int16_t adc_data[NUM_ADC_SAMPLES];
 static float adc_data_f[NUM_ADC_SAMPLES];
 
 float piezo_samples[NUM_SAMPLES_PIEZO_CAL];
@@ -195,6 +195,7 @@ SleepType_E app_get_sleep_capability(void)
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
+	(void)hadc;
 	BaseType_t higher_prio_task_woken = pdFALSE;
 
 	if (adc_task_handle)
@@ -207,6 +208,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 
 void AdcReaderTask(const void *arg)
 {
+	(void)arg;
 	uint32_t last_wake_time;
 	uint32_t last_led_change;
 	float piezo_cal_stdev_V = -1.0f;
@@ -336,6 +338,7 @@ inline int calc_color(int old_color, int new_color, int inc, int increments)
 
 void LedTask(void const *arg)
 {
+	(void)arg;
 	LedCmd_S command;
 	struct led_color old_color, fade_color;
 

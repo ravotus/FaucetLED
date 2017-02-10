@@ -494,6 +494,7 @@ __weak void AdcReaderTask(void const * argument)
   /* USER CODE BEGIN 5 */
 	// Defined as weak to allow overriding the default task.
 	// See app.c for actual definition.
+	(void)argument;
   /* USER CODE END 5 */ 
 }
 
@@ -501,6 +502,7 @@ __weak void AdcReaderTask(void const * argument)
 void WatchdogTask(void const * argument)
 {
   /* USER CODE BEGIN WatchdogTask */
+	(void)argument;
 	while(1)
 	{
 		// Delay first to avoid triggering window after boot.
