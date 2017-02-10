@@ -25,7 +25,7 @@ static uint32_t adc_cal_value;
 static volatile int16_t adc_data[NUM_ADC_SAMPLES];
 static float adc_data_f[NUM_ADC_SAMPLES];
 
-float piezo_samples[NUM_SAMPLES_PIEZO_CAL];
+static float piezo_samples[NUM_SAMPLES_PIEZO_CAL];
 
 static const struct led_color green = {
 	.red = 0,
@@ -214,6 +214,7 @@ void AdcReaderTask(const void *arg)
 	float piezo_cal_stdev_V = -1.0f;
 	size_t piezo_cal_index = 0;
 	size_t piezo_buffer_index = 0;
+	float piezo_stdev_V;
 	LedCmd_S led_cmd;
 
 	adc_task_handle = xTaskGetCurrentTaskHandle();
@@ -266,11 +267,11 @@ void AdcReaderTask(const void *arg)
 		// TODO
 		//piezo_amp_disable();
 
-		float stdev_V = PIEZO_STDEV_SCALE_FACT * compute_sample_stdev((int16_t *)adc_data, adc_ref_V);
+		piezo_stdev_V = PIEZO_STDEV_SCALE_FACT * compute_sample_stdev((int16_t *)adc_data, adc_ref_V);
 
 		if (piezo_cal_index < NUM_SAMPLES_PIEZO_CAL)
 		{
-			piezo_samples[piezo_cal_index] = stdev_V;
+			piezo_samples[piezo_cal_index] = piezo_stdev_V;
 			if (++piezo_cal_index == NUM_SAMPLES_PIEZO_CAL)
 			{
 				arm_mean_f32(piezo_samples, NUM_SAMPLES_PIEZO_CAL, &piezo_cal_stdev_V);
@@ -282,7 +283,7 @@ void AdcReaderTask(const void *arg)
 		}
 		else
 		{
-			piezo_samples[piezo_buffer_index] = stdev_V - piezo_cal_stdev_V;
+			piezo_samples[piezo_buffer_index] = piezo_stdev_V - piezo_cal_stdev_V;
 			if (++piezo_buffer_index >= NUM_SAMPLES_PIEZO_HIST)
 			{
 				piezo_buffer_index = 0;
