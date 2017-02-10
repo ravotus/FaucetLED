@@ -48,6 +48,7 @@
 /* USER CODE BEGIN Includes */     
 #include "stm32l4xx_hal.h"
 #include "stm32l4xx_hal_pwr.h"
+#include "stm32l4xx_hal_tim.h"
 #include "stm32l4xx_nucleo_32.h"
 
 #include "app.h"
@@ -75,8 +76,26 @@ void PreSleepProcessing(uint32_t *ulExpectedIdleTime);
 void PostSleepProcessing(uint32_t *ulExpectedIdleTime);
 
 /* Hook prototypes */
+void configureTimerForRunTimeStats(void);
+unsigned long getRunTimeCounterValue(void);
 void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName);
 void vApplicationMallocFailedHook(void);
+
+/* USER CODE BEGIN 1 */
+extern TIM_HandleTypeDef htim6;
+
+/* Functions needed when configGENERATE_RUN_TIME_STATS is on */
+__weak void configureTimerForRunTimeStats(void)
+{
+	DBGMCU->APB1FZR1 |= DBGMCU_APB1FZR1_DBG_TIM2_STOP;
+	HAL_TIM_Base_Start(&htim2);
+}
+
+__weak unsigned long getRunTimeCounterValue(void)
+{
+	return __HAL_TIM_GET_COUNTER(&htim2);
+}
+/* USER CODE END 1 */
 
 /* USER CODE BEGIN 4 */
 void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName)

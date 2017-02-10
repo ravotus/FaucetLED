@@ -178,6 +178,7 @@ static void compute_led_color(float temp_C, struct led_color *output)
 
 SleepType_E app_get_sleep_capability(void)
 {
+#if 0
 	uint32_t adc_state = HAL_ADC_GetState(&ADC_DEV);
 	if ((adc_state & HAL_ADC_STATE_REG_BUSY) || (adc_state & HAL_ADC_STATE_INJ_BUSY))
 	{
@@ -191,6 +192,8 @@ SleepType_E app_get_sleep_capability(void)
 	{
 		return SLEEP_STOP;
 	}
+#endif
+	return SLEEP_NONE;
 }
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
@@ -206,6 +209,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 	}
 }
 
+volatile char task_info[256];
+
 void AdcReaderTask(const void *arg)
 {
 	(void)arg;
@@ -215,6 +220,7 @@ void AdcReaderTask(const void *arg)
 	size_t piezo_cal_index = 0;
 	size_t piezo_buffer_index = 0;
 	LedCmd_S led_cmd;
+	unsigned runs = 0;
 
 	adc_task_handle = xTaskGetCurrentTaskHandle();
 
@@ -325,6 +331,12 @@ void AdcReaderTask(const void *arg)
 		(void)HAL_ADC_DeInit(&ADC_DEV);
 		(void)HAL_ADCEx_DisableVoltageRegulator(&ADC_DEV);
 		(void)HAL_ADCEx_EnterADCDeepPowerDownMode(&ADC_DEV);
+
+		if (++runs == 50)
+		{
+			vTaskGetRunTimeStats((char *)task_info);
+			runs = 0;
+		}
 
 		osDelayUntil(&last_wake_time, 100);
 	}

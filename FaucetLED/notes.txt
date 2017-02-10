@@ -63,6 +63,13 @@ Timeout = 4 * (34000/32) = 4250, but max of 4095 = 3.85s
 Window = 2.5 * (29000/32) = 2266
 => Watchdog task < 3.85s, > (4095-2266)/(34000/32) = 1.72s
 
+FreeRTOS Run-time stats
+=======================
+Use the code in the run-time-stats branch. It uses the 32-bit timer TIM2 to avoid frequent overflows. Use the following
+gdb call to print the status in human-readable format:
+    printf "%s", task_info
+Note that the LED PWM will not work on this branch due to the extremely large timer period.
+
 Low-Power Modes
 ===============
 12/24/16: Low-power idle is working for the most part with HCLK=100kHz using the SysTick timer. Decided to treat each tick as 1s in low power mode,
