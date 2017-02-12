@@ -63,6 +63,17 @@ Timeout = 4 * (34000/32) = 4250, but max of 4095 = 3.85s
 Window = 2.5 * (29000/32) = 2266
 => Watchdog task < 3.85s, > (4095-2266)/(34000/32) = 1.72s
 
+Export sizes of all symbols
+===========================
+source tools/env.sh
+arm-atollic-eabi-nm.exe --size-sort --radix=d --reverse-sort --special-syms Release/FaucetLED.elf > Release/sizes.txt
+
+Floating-point math
+===================
+arm_math.h's arm_sqrt_f32() implementation was calling some double-precision code. Either use -fno-math-errno, or change to use
+inline assembler with vsqrt.f32 instruction (I chose the latter). powf and logf also appear to use some double-precision calls,
+as evidenced by some calls to __adddf3, __aeabi_dsub, and __subdf3 in the sizes output.
+
 Low-Power Modes
 ===============
 12/24/16: Low-power idle is working for the most part with HCLK=100kHz using the SysTick timer. Decided to treat each tick as 1s in low power mode,
