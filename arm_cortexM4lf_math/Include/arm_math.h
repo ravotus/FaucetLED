@@ -5754,7 +5754,12 @@ void arm_rfft_fast_f32(
 #elif (__FPU_USED == 1) && (defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050))
       *pOut = __builtin_sqrtf(in);
 #elif (__FPU_USED == 1) && defined(__GNUC__)
-      *pOut = __builtin_sqrtf(in);
+      //*pOut = __builtin_sqrtf(in);
+      // Nick: Unless -fno-math-errno is defined, gcc will not generate the vsqrt.f32
+      // instruction for the __builtin_sqrtf() call. Rather than define that for
+      // the whole library, just call the instruction directly like we do for
+      // the port below.
+      asm("VSQRT.F32 %0,%1" : "=t"(*pOut) : "t"(in));
 #elif (__FPU_USED == 1) && defined ( __ICCARM__ ) && (__VER__ >= 6040000)
       __ASM("VSQRT.F32 %0,%1" : "=t"(*pOut) : "t"(in));
 #else
