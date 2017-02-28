@@ -46,35 +46,33 @@
   /* Includes ------------------------------------------------------------------*/
 
 /* USER CODE BEGIN Includes */
-
+#include "stm32l052xx.h"
+#include "stm32l0xx_hal.h"
+#include "stm32l0xx_hal_gpio.h"
 /* USER CODE END Includes */
 
 /* Private define ------------------------------------------------------------*/
 #define LED_TIM_PERIOD 255
 #define LED_TIM_CLK_DIV 1
 
-#define VCC_2_IN_Pin GPIO_PIN_0
-#define VCC_2_IN_GPIO_Port GPIOA
+#define THERM_SW_Pin GPIO_PIN_14
+#define THERM_SW_GPIO_Port GPIOC
+#define LED_R_Pin GPIO_PIN_0
+#define LED_R_GPIO_Port GPIOA
 #define LED_G_Pin GPIO_PIN_1
 #define LED_G_GPIO_Port GPIOA
 #define LED_B_Pin GPIO_PIN_2
 #define LED_B_GPIO_Port GPIOA
-#define VCC_2_BUF_Pin GPIO_PIN_3
-#define VCC_2_BUF_GPIO_Port GPIOA
-#define PIEZO_AMP_Pin GPIO_PIN_4
-#define PIEZO_AMP_GPIO_Port GPIOA
-#define LED_R_Pin GPIO_PIN_5
-#define LED_R_GPIO_Port GPIOA
-#define THERM_SENSE_Pin GPIO_PIN_6
+#define THERM_SENSE_Pin GPIO_PIN_3
 #define THERM_SENSE_GPIO_Port GPIOA
-#define AMP_SHDN_Pin GPIO_PIN_7
-#define AMP_SHDN_GPIO_Port GPIOA
-#define THERM_PWR_Pin GPIO_PIN_8
-#define THERM_PWR_GPIO_Port GPIOA
-#define USR_USB_DM_Pin GPIO_PIN_11
-#define USR_USB_DM_GPIO_Port GPIOA
-#define USR_USB_DP_Pin GPIO_PIN_12
-#define USR_USB_DP_GPIO_Port GPIOA
+#define BATT_2_Pin GPIO_PIN_1
+#define BATT_2_GPIO_Port GPIOB
+#define LED_DBG_Pin GPIO_PIN_15
+#define LED_DBG_GPIO_Port GPIOA
+#define TSC_SAMPLING_Pin GPIO_PIN_6
+#define TSC_SAMPLING_GPIO_Port GPIOB
+#define TSC_IN_Pin GPIO_PIN_7
+#define TSC_IN_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 extern void Error_Handler(void);
 /* USER CODE END Private defines */

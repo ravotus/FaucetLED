@@ -46,11 +46,7 @@
 #include "task.h"
 
 /* USER CODE BEGIN Includes */     
-#include "stm32l4xx_hal.h"
-#include "stm32l4xx_hal_pwr.h"
-#include "stm32l4xx_nucleo_32.h"
-
-#include "app.h"
+#include "main.h"
 /* USER CODE END Includes */
 
 /* Variables -----------------------------------------------------------------*/
@@ -70,10 +66,6 @@
 const uint32_t USED uxTopUsedPriority = configMAX_PRIORITIES - 1;
 /* USER CODE END FunctionPrototypes */
 
-/* Pre/Post sleep processing prototypes */
-void PreSleepProcessing(uint32_t *ulExpectedIdleTime);
-void PostSleepProcessing(uint32_t *ulExpectedIdleTime);
-
 /* Hook prototypes */
 void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName);
 void vApplicationMallocFailedHook(void);
@@ -86,7 +78,7 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName)
 	/* Run time stack overflow checking is performed if
 	configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2. This hook function is
 	called if a stack overflow is detected. */
-	BSP_LED_On(LED3);
+	HAL_GPIO_WritePin(LED_DBG_GPIO_Port, LED_DBG_Pin, GPIO_PIN_RESET);
 	taskDISABLE_INTERRUPTS();
 	while(1);
 }
@@ -105,14 +97,11 @@ void vApplicationMallocFailedHook(void)
 	FreeRTOSConfig.h, and the xPortGetFreeHeapSize() API function can be used
 	to query the size of free heap space that remains (although it does not
 	provide information on how the remaining heap might be fragmented). */
-	BSP_LED_On(LED3);
+	HAL_GPIO_WritePin(LED_DBG_GPIO_Port, LED_DBG_Pin, GPIO_PIN_RESET);
 	taskDISABLE_INTERRUPTS();
 	while(1);
 }
 /* USER CODE END 5 */
-
-/* USER CODE BEGIN PREPOSTSLEEP */
-/* USER CODE END PREPOSTSLEEP */
 
 /* USER CODE BEGIN Application */
      

@@ -1,7 +1,7 @@
 #ifndef __APP_H__
 #define __APP_H__
 
-#include "stm32l4xx_hal.h"
+#include "stm32l0xx_hal.h"
 
 #include "drivers/led.h"
 
@@ -27,7 +27,7 @@
 #define THERMISTOR_T0				10000
 #define THERMISTOR_B				3984
 
-#define ADC_DEV				hadc1
+#define ADC_DEV				hadc
 #define CRC_DEV				hcrc
 #define LED_TIMER_DEV		htim2
 #define LPTIM_DEV			hlptim1
@@ -39,7 +39,6 @@ extern ADC_HandleTypeDef 	ADC_DEV;
 extern TIM_HandleTypeDef 	LED_TIMER_DEV;
 extern LPTIM_HandleTypeDef	LPTIM_DEV;
 extern TIM_HandleTypeDef	HAL_TICK_TIM_DEV;
-extern OPAMP_HandleTypeDef	OPAMP_DEV;
 
 #define APP_LOW_POWER_TICK_HZ	400000
 #define APP_LOW_POWER_MSI_RANGE	RCC_MSIRANGE_2

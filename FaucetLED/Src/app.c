@@ -33,30 +33,16 @@ static const struct led_color green = {
 	.blue = 0
 };
 
-inline void piezo_amp_enable(void)
-{
-	// Enable the external opamp and give it some time to settle. It needs 3.5us min.
-	HAL_GPIO_WritePin(AMP_SHDN_GPIO_Port, AMP_SHDN_Pin, GPIO_PIN_SET);
-	// Start the internal opamp which buffers Vcc/2.
-	HAL_OPAMP_Start(&OPAMP_DEV);
-}
-
-inline void piezo_amp_disable(void)
-{
-	HAL_GPIO_WritePin(AMP_SHDN_GPIO_Port, AMP_SHDN_Pin, GPIO_PIN_RESET);
-	HAL_OPAMP_Stop(&OPAMP_DEV);
-}
-
 inline void thermistor_enable(void)
 {
-	HAL_GPIO_WritePin(THERM_PWR_GPIO_Port, THERM_PWR_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(THERM_SW_GPIO_Port, THERM_SW_Pin, GPIO_PIN_SET);
 	// The thermistor has a long rise time due to the cable.
 	osDelay(20);
 }
 
 inline void thermistor_disable(void)
 {
-	HAL_GPIO_WritePin(THERM_PWR_GPIO_Port, THERM_PWR_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(THERM_SW_GPIO_Port, THERM_SW_Pin, GPIO_PIN_RESET);
 }
 
 static void adc_select_channel(uint32_t channel, uint32_t sampling_time)
@@ -64,11 +50,12 @@ static void adc_select_channel(uint32_t channel, uint32_t sampling_time)
 	ADC_ChannelConfTypeDef adc_channel_config;
 	adc_channel_config.Channel = channel;
 	adc_channel_config.Rank = 1;
+#if 0
 	adc_channel_config.SamplingTime = sampling_time;
 	adc_channel_config.SingleDiff = ADC_SINGLE_ENDED;
 	adc_channel_config.OffsetNumber = ADC_OFFSET_NONE;
 	adc_channel_config.Offset = 0;
-
+#endif
 	if (HAL_ADC_ConfigChannel(&ADC_DEV, &adc_channel_config) != HAL_OK)
 	{
 		Error_Handler();
@@ -110,27 +97,6 @@ static void adc_perform_conversion_dma(void)
 	}
 	wait_for_adc_conversion();
 	(void)HAL_ADC_Stop_DMA(&ADC_DEV);
-}
-
-static float compute_sample_stdev(int16_t *samples, uint16_t adc_ref_V)
-{
-	// ADC data is required to be right-aligned because the injected channels
-	// have oversampling enabled.
-	arm_q15_to_float(samples, (float *)adc_data_f, NUM_ADC_SAMPLES);
-	// We need to scale the data by 8 because the adc is 12-bit for a range
-	// of [0, 4096), and arm_q15_to_float() expects a Q15 value in [0, 32768),
-	// hence (32768/4096) = 8.
-	arm_scale_f32((float *)adc_data_f, adc_ref_V * 8.0f,
-			      (float *)adc_data_f, NUM_ADC_SAMPLES);
-
-	// Calculate the standard deviation of the samples, which it turns out
-	// is mathematically the same as calculating the RMS of the signal with
-	// the DC component (ie, the mean) removed. This gives a good
-	// approximation of the amplitude of the differential signal.
-	float stdev_V;
-	arm_std_f32((float *)adc_data_f, NUM_ADC_SAMPLES, &stdev_V);
-
-	return stdev_V;
 }
 
 static float compute_thermistor_temp_C(uint16_t adc_counts, float adc_ref_V)
@@ -233,18 +199,14 @@ void AdcReaderTask(const void *arg)
 
 	last_wake_time = osKernelSysTick();
 	last_led_change = last_wake_time;
-	piezo_amp_enable();
 
 	while (1)
 	{
-		// TODO
-		//piezo_amp_enable();
-
-		extern void MX_ADC1_Init(void);
-		MX_ADC1_Init();
+		extern void MX_ADC_Init(void);
+		MX_ADC_Init();
 
 		// Configure the internal reference channel while the ADC is disabled (required by HAL).
-		adc_select_channel(ADC_CHANNEL_VREFINT, ADC_SAMPLETIME_2CYCLES_5);
+		adc_select_channel(ADC_CHANNEL_VREFINT, /*ADC_SAMPLETIME_2CYCLES_5*/0);
 
 		// Workaround HAL bug which requires the ADC to be enabled to set the calibration
 		// but yet there is no way to fully enable it without starting a conversion.
@@ -262,19 +224,17 @@ void AdcReaderTask(const void *arg)
 		// Calculate the value of the internal reference.
 		float adc_ref_V = 3.0f * (*VREFINT_CAL) / HAL_ADC_GetValue(&ADC_DEV);
 
-		adc_select_channel(ADC_CHANNEL_PIEZO_AMP, ADC_SAMPLETIME_6CYCLES_5);
+		adc_select_channel(ADC_CHANNEL_PIEZO_AMP, /*ADC_SAMPLETIME_6CYCLES_5*/0);
 		adc_perform_conversion_dma();
-		// TODO
-		//piezo_amp_disable();
 
-		piezo_stdev_V = PIEZO_STDEV_SCALE_FACT * compute_sample_stdev((int16_t *)adc_data, adc_ref_V);
+		piezo_stdev_V = PIEZO_STDEV_SCALE_FACT;
 
 		if (piezo_cal_index < NUM_SAMPLES_PIEZO_CAL)
 		{
 			piezo_samples[piezo_cal_index] = piezo_stdev_V;
 			if (++piezo_cal_index == NUM_SAMPLES_PIEZO_CAL)
 			{
-				arm_mean_f32(piezo_samples, NUM_SAMPLES_PIEZO_CAL, &piezo_cal_stdev_V);
+				//arm_mean_f32(piezo_samples, NUM_SAMPLES_PIEZO_CAL, &piezo_cal_stdev_V);
 				piezo_cal_stdev_V *= PIEZO_CAL_SCALE_FACT;
 
 				memset(piezo_samples, 0, sizeof(piezo_samples));
@@ -303,7 +263,7 @@ void AdcReaderTask(const void *arg)
 				if (active >= NUM_SAMPLES_PIEZO_THRESH)
 				{
 					thermistor_enable();
-					adc_select_channel(ADC_CHANNEL_THERMISTOR, ADC_SAMPLETIME_24CYCLES_5);
+					adc_select_channel(ADC_CHANNEL_THERMISTOR, /*ADC_SAMPLETIME_24CYCLES_5*/0);
 					adc_perform_conversion();
 					thermistor_disable();
 
@@ -324,8 +284,8 @@ void AdcReaderTask(const void *arg)
 		}
 
 		(void)HAL_ADC_DeInit(&ADC_DEV);
-		(void)HAL_ADCEx_DisableVoltageRegulator(&ADC_DEV);
-		(void)HAL_ADCEx_EnterADCDeepPowerDownMode(&ADC_DEV);
+		//(void)HAL_ADCEx_DisableVoltageRegulator(&ADC_DEV);
+		//(void)HAL_ADCEx_EnterADCDeepPowerDownMode(&ADC_DEV);
 
 		osDelayUntil(&last_wake_time, 100);
 	}

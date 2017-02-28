@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "stm32l4xx_hal_def.h"
+#include "stm32l0xx_hal_def.h"
 
 #define LED_COLOR_MIN	0
 #define LED_COLOR_MAX	UINT8_MAX

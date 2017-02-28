@@ -1,4 +1,4 @@
-#include "stm32l4xx_hal.h"
+#include "stm32l0xx_hal.h"
 #include "drivers/led.h"
 
 static bool active = false;
@@ -108,10 +108,7 @@ enum led_error led_set(const struct led_color *color)
 
 	sConfigOC.OCMode = TIM_OCMODE_PWM1;
 	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-	sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
 	sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-	sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
-	sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
 
 	// Red channel
 	sConfigOC.Pulse = (color->red * timer_period) / 255;

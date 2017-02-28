@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V8.2.3 - Copyright (C) 2015 Real Time Engineers Ltd.
+    FreeRTOS V9.0.0 - Copyright (C) 2016 Real Time Engineers Ltd.
     All rights reserved
 
     VISIT http://www.FreeRTOS.org TO ENSURE YOU ARE USING THE LATEST VERSION.
@@ -94,23 +94,24 @@
 #endif
 
 #define configUSE_PREEMPTION                     1
+#define configSUPPORT_STATIC_ALLOCATION          0
+#define configSUPPORT_DYNAMIC_ALLOCATION         1
 #define configUSE_IDLE_HOOK                      0
 #define configUSE_TICK_HOOK                      0
 #define configCPU_CLOCK_HZ                       ( SystemCoreClock )
 #define configTICK_RATE_HZ                       ((TickType_t)1000)
 #define configMAX_PRIORITIES                     ( 7 )
 #define configMINIMAL_STACK_SIZE                 ((uint16_t)128)
-#define configTOTAL_HEAP_SIZE                    ((size_t)3000)
+#define configTOTAL_HEAP_SIZE                    ((size_t)3072)
 #define configMAX_TASK_NAME_LEN                  ( 16 )
 #define configUSE_TRACE_FACILITY                 0
 #define configUSE_16_BIT_TICKS                   0
 #define configIDLE_SHOULD_YIELD                  0
+#define configUSE_MUTEXES                        1
 #define configQUEUE_REGISTRY_SIZE                8
 #define configCHECK_FOR_STACK_OVERFLOW           2
 #define configUSE_MALLOC_FAILED_HOOK             1
-#define configUSE_APPLICATION_TASK_TAG           1
 #define configENABLE_BACKWARD_COMPATIBILITY      0
-#define configUSE_TICKLESS_IDLE                  1
 
 /* Co-routine definitions. */
 #define configUSE_CO_ROUTINES                    0
@@ -126,27 +127,27 @@ to exclude the API function. */
 #define INCLUDE_vTaskDelayUntil             1
 #define INCLUDE_vTaskDelay                  1
 #define INCLUDE_xTaskGetSchedulerState      1
-
 #define INCLUDE_uxTaskGetStackHighWaterMark 1
 #define INCLUDE_xTaskGetCurrentTaskHandle   1
+#define INCLUDE_eTaskGetState               1
 
 /* Cortex-M specific definitions. */
 #ifdef __NVIC_PRIO_BITS
  /* __BVIC_PRIO_BITS will be specified when CMSIS is being used. */
  #define configPRIO_BITS         __NVIC_PRIO_BITS
 #else
- #define configPRIO_BITS         4
+ #define configPRIO_BITS         2
 #endif
 
 /* The lowest interrupt priority that can be used in a call to a "set priority"
 function. */
-#define configLIBRARY_LOWEST_INTERRUPT_PRIORITY   15
+#define configLIBRARY_LOWEST_INTERRUPT_PRIORITY   3
 
 /* The highest interrupt priority that can be used by any interrupt service
 routine that makes calls to interrupt safe FreeRTOS API functions.  DO NOT CALL
 INTERRUPT SAFE FREERTOS API FUNCTIONS FROM ANY INTERRUPT THAT HAS A HIGHER
 PRIORITY THAN THIS! (higher priorities are lower numeric values. */
-#define configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY 5
+#define configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY 3
 
 /* Interrupt priorities used by the kernel port layer itself.  These are generic
 to all Cortex-M ports, and do not rely on any particular library functions. */
@@ -174,18 +175,5 @@ standard names. */
 /* Section where parameter definitions can be added (for instance, to override default ones in FreeRTOS.h) */
 #define configSYSTICK_CLOCK_HZ ( configCPU_CLOCK_HZ / 8 )
 /* USER CODE END Defines */ 
-
-#if defined(__ICCARM__) || defined(__CC_ARM) || defined(__GNUC__)
-void PreSleepProcessing(uint32_t *ulExpectedIdleTime);
-void PostSleepProcessing(uint32_t *ulExpectedIdleTime);
-#endif /* defined(__ICCARM__) || defined(__CC_ARM) || defined(__GNUC__) */
-
-/* The configPRE_SLEEP_PROCESSING() and configPOST_SLEEP_PROCESSING() macros
-allow the application writer to add additional code before and after the MCU is
-placed into the low power state respectively. */
-#if configUSE_TICKLESS_IDLE == 1 
-#define configPRE_SLEEP_PROCESSING(x)	PreSleepProcessing(&x)
-#define configPOST_SLEEP_PROCESSING(x)	PostSleepProcessing(&x)
-#endif /* configUSE_TICKLESS_IDLE == 1 */
 
 #endif /* FREERTOS_CONFIG_H */
