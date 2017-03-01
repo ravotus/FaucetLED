@@ -75,10 +75,10 @@ void SystemClock_Config(void);
 void Error_Handler(void);
 static void MX_GPIO_Init(void);
 void MX_ADC_Init(void);
-static void MX_IWDG_Init(void);
-static void MX_LPTIM1_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_IWDG_Init(void);
 static void MX_TSC_Init(void);
+static void MX_LPTIM1_Init(void);
 void WatchdogTask(void const * argument);
 extern void LedTask(void const * argument);
 extern void AdcReaderTask(void const * argument);
@@ -113,10 +113,10 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_ADC_Init();
-  MX_IWDG_Init();
-  MX_LPTIM1_Init();
   MX_TIM2_Init();
+  MX_IWDG_Init();
   MX_TSC_Init();
+  MX_LPTIM1_Init();
 
   /* USER CODE BEGIN 2 */
 #ifndef NDEBUG
@@ -311,8 +311,8 @@ static void MX_IWDG_Init(void)
 {
 
   hiwdg.Instance = IWDG;
-  hiwdg.Init.Prescaler = IWDG_PRESCALER_4;
-  hiwdg.Init.Window = 2266;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_32;
+  hiwdg.Init.Window = 4095;
   hiwdg.Init.Reload = 4095;
   if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
   {
@@ -393,13 +393,13 @@ static void MX_TSC_Init(void)
     /**Configure the TSC peripheral 
     */
   htsc.Instance = TSC;
-  htsc.Init.CTPulseHighLength = TSC_CTPH_2CYCLES;
-  htsc.Init.CTPulseLowLength = TSC_CTPL_2CYCLES;
+  htsc.Init.CTPulseHighLength = TSC_CTPH_16CYCLES;
+  htsc.Init.CTPulseLowLength = TSC_CTPL_16CYCLES;
   htsc.Init.SpreadSpectrum = DISABLE;
   htsc.Init.SpreadSpectrumDeviation = 1;
   htsc.Init.SpreadSpectrumPrescaler = TSC_SS_PRESC_DIV1;
-  htsc.Init.PulseGeneratorPrescaler = TSC_PG_PRESC_DIV64;
-  htsc.Init.MaxCountValue = TSC_MCV_255;
+  htsc.Init.PulseGeneratorPrescaler = TSC_PG_PRESC_DIV8;
+  htsc.Init.MaxCountValue = TSC_MCV_16383;
   htsc.Init.IODefaultMode = TSC_IODEF_OUT_PP_LOW;
   htsc.Init.SynchroPinPolarity = TSC_SYNC_POLARITY_FALLING;
   htsc.Init.AcquisitionMode = TSC_ACQ_MODE_NORMAL;
@@ -487,7 +487,7 @@ void WatchdogTask(void const * argument)
 	while(1)
 	{
 		// Delay first to avoid triggering window after boot.
-		osDelay(3000);
+		osDelay(2000);
 		HAL_IWDG_Refresh(&hiwdg);
 	}
   /* USER CODE END 5 */ 
