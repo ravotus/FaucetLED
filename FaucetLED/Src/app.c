@@ -210,6 +210,7 @@ void AdcReaderTask(const void *arg)
 
 		// Workaround HAL bug which requires the ADC to be enabled to set the calibration
 		// but yet there is no way to fully enable it without starting a conversion.
+		extern HAL_StatusTypeDef ADC_Enable(ADC_HandleTypeDef* hadc);
 		if (ADC_Enable(&ADC_DEV) != HAL_OK)
 		{
 			Error_Handler();
