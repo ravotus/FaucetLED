@@ -33,14 +33,14 @@ static const struct led_color green = {
 	.blue = 0
 };
 
-inline void thermistor_enable(void)
+static inline void thermistor_enable(void)
 {
 	HAL_GPIO_WritePin(THERM_SW_GPIO_Port, THERM_SW_Pin, GPIO_PIN_SET);
 	// The thermistor has a long rise time due to the cable.
 	osDelay(20);
 }
 
-inline void thermistor_disable(void)
+static inline void thermistor_disable(void)
 {
 	HAL_GPIO_WritePin(THERM_SW_GPIO_Port, THERM_SW_Pin, GPIO_PIN_RESET);
 }
@@ -291,7 +291,7 @@ void AdcReaderTask(const void *arg)
 	}
 }
 
-inline int calc_color(int old_color, int new_color, int inc, int increments)
+static inline int calc_color(int old_color, int new_color, int inc, int increments)
 {
 	// Important: This math relies on signed values
 	return old_color + (((new_color - old_color) * inc) / increments);
