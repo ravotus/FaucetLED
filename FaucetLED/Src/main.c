@@ -62,9 +62,17 @@ TIM_HandleTypeDef htim2;
 TSC_HandleTypeDef htsc;
 
 osThreadId WatchdogHandle;
+uint32_t WatchdogBuffer[ 128 ];
+osStaticThreadDef_t WatchdogControlBlock;
 osThreadId LedHandle;
+uint32_t LedBuffer[ 128 ];
+osStaticThreadDef_t LedControlBlock;
 osThreadId AdcReaderHandle;
+uint32_t AdcReaderBuffer[ 128 ];
+osStaticThreadDef_t AdcReaderControlBlock;
 osMessageQId LedCmdQHandle;
+uint8_t LedCmdQBuffer[ 4 * sizeof( LedCmd_S ) ];
+osStaticMessageQDef_t LedCmdQControlBlock;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -143,15 +151,15 @@ int main(void)
 
   /* Create the thread(s) */
   /* definition and creation of Watchdog */
-  osThreadDef(Watchdog, WatchdogTask, osPriorityHigh, 0, 128);
+  osThreadStaticDef(Watchdog, WatchdogTask, osPriorityHigh, 0, 128, WatchdogBuffer, &WatchdogControlBlock);
   WatchdogHandle = osThreadCreate(osThread(Watchdog), NULL);
 
   /* definition and creation of Led */
-  osThreadDef(Led, LedTask, osPriorityNormal, 0, 128);
+  osThreadStaticDef(Led, LedTask, osPriorityNormal, 0, 128, LedBuffer, &LedControlBlock);
   LedHandle = osThreadCreate(osThread(Led), NULL);
 
   /* definition and creation of AdcReader */
-  osThreadDef(AdcReader, AdcReaderTask, osPriorityBelowNormal, 0, 128);
+  osThreadStaticDef(AdcReader, AdcReaderTask, osPriorityBelowNormal, 0, 128, AdcReaderBuffer, &AdcReaderControlBlock);
   AdcReaderHandle = osThreadCreate(osThread(AdcReader), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
@@ -160,7 +168,7 @@ int main(void)
 
   /* Create the queue(s) */
   /* definition and creation of LedCmdQ */
-  osMessageQDef(LedCmdQ, 4, LedCmd_S);
+  osMessageQStaticDef(LedCmdQ, 4, LedCmd_S, LedCmdQBuffer, &LedCmdQControlBlock);
   LedCmdQHandle = osMessageCreate(osMessageQ(LedCmdQ), NULL);
 
   /* USER CODE BEGIN RTOS_QUEUES */
