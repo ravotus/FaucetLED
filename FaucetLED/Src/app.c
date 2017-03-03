@@ -235,7 +235,7 @@ void AdcReaderTask(const void *arg)
 			piezo_samples[piezo_cal_index] = piezo_stdev_V;
 			if (++piezo_cal_index == NUM_SAMPLES_PIEZO_CAL)
 			{
-				//arm_mean_f32(piezo_samples, NUM_SAMPLES_PIEZO_CAL, &piezo_cal_stdev_V);
+				arm_mean_f32(piezo_samples, NUM_SAMPLES_PIEZO_CAL, &piezo_cal_stdev_V);
 				piezo_cal_stdev_V *= PIEZO_CAL_SCALE_FACT;
 
 				memset(piezo_samples, 0, sizeof(piezo_samples));
