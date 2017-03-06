@@ -21,6 +21,7 @@
 
 #define NOTIFY_ADC_COMPLETE			0x01
 
+extern QueueHandle_t TouchDataQHandle;
 extern QueueHandle_t LedCmdQHandle;
 
 static TaskHandle_t adc_task_handle = NULL;
@@ -59,8 +60,13 @@ static void adc_select_channel(uint32_t channel)
 	}
 }
 
-static void wait_for_adc_conversion(void)
+static void adc_perform_conversion(void)
 {
+	if (HAL_ADC_Start_IT(&ADC_DEV) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
 	uint32_t task_notify_val;
 	if (xTaskNotifyWait(0, NOTIFY_ADC_COMPLETE, &task_notify_val, 90))
 	{
@@ -74,16 +80,30 @@ static void wait_for_adc_conversion(void)
 		// Timeout
 		Error_Handler();
 	}
+
+	(void)HAL_ADC_Stop_IT(&ADC_DEV);
 }
 
-static void adc_perform_conversion(void)
+static uint16_t read_touch_sense(void)
 {
-	if (HAL_ADC_Start_IT(&ADC_DEV) != HAL_OK)
+	uint16_t tsc_value;
+
+	HAL_TSC_IODischarge(&TSC_DEV, ENABLE);
+	osDelay(1);
+
+	if (HAL_TSC_Start_IT(&TSC_DEV) != HAL_OK)
 	{
 		Error_Handler();
 	}
-	wait_for_adc_conversion();
-	(void)HAL_ADC_Stop_IT(&ADC_DEV);
+
+	if (! xQueueReceive(TouchDataQHandle, &tsc_value, 50))
+	{
+		Error_Handler();
+	}
+
+	(void)HAL_TSC_Stop_IT(&TSC_DEV);
+
+	return tsc_value;
 }
 
 static float compute_thermistor_temp_C(uint16_t adc_counts, float adc_ref_V)
@@ -159,11 +179,37 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 	}
 }
 
+void HAL_TSC_ConvCpltCallback(TSC_HandleTypeDef* htsc)
+{
+	BaseType_t higher_prio_task_woken = pdFALSE;
+	HAL_TSC_IODischarge(htsc, ENABLE);
+
+	if (HAL_TSC_GroupGetStatus(htsc, TOUCH_SENSE_GROUP) == TSC_GROUP_COMPLETED)
+	{
+		if (adc_task_handle)
+		{
+			uint16_t tsc_val = (uint16_t)HAL_TSC_GroupGetValue(htsc, TOUCH_SENSE_GROUP);
+			(void)xQueueSendFromISR(TouchDataQHandle, &tsc_val, &higher_prio_task_woken);
+			portYIELD_FROM_ISR(higher_prio_task_woken);
+		}
+	}
+}
+
+void HAL_TSC_ErrorCallback(TSC_HandleTypeDef* htsc)
+{
+	// TODO
+	(void)htsc;
+}
+
+uint32_t touch_cal = 0;
+
 void AdcReaderTask(const void *arg)
 {
 	(void)arg;
 	uint32_t last_wake_time;
 	uint32_t last_led_change;
+	uint16_t touch_val;
+	uint32_t ticks;
 	LedCmd_S led_cmd;
 
 	adc_task_handle = xTaskGetCurrentTaskHandle();
@@ -174,6 +220,14 @@ void AdcReaderTask(const void *arg)
 		Error_Handler();
 	}
 
+	for (unsigned i=0; i<TOUCH_NUM_SAMPLES_CAL; ++i)
+	{
+		osDelay(10);
+		touch_cal += read_touch_sense();
+	}
+
+	touch_cal /= TOUCH_NUM_SAMPLES_CAL;
+
 	led_cmd.id = LED_CMD_SET;
 	led_cmd.color = green;
 	(void)xQueueSend(LedCmdQHandle, &led_cmd, 0);
@@ -183,36 +237,46 @@ void AdcReaderTask(const void *arg)
 
 	while (1)
 	{
-		uint32_t ticks = osKernelSysTick();
-		if ((ticks - last_led_change) > 1000)
+		touch_val = read_touch_sense();
+		ticks = osKernelSysTick();
+
+		// Check if the read value is at least 10% less than the calibration value.
+		// TODO: Compensate for drift in touch sensor value.
+		if ((touch_val < touch_cal) && ((10*touch_cal / touch_val)) >= 11)
 		{
-			// Configure the internal reference channel while the ADC is disabled (required by HAL).
-			adc_select_channel(ADC_CHANNEL_VREFINT);
-			adc_perform_conversion();
+			if ((ticks - last_led_change) > 1000)
+			{
+				// Configure the internal reference channel while the ADC is disabled (required by HAL).
+				adc_select_channel(ADC_CHANNEL_VREFINT);
+				adc_perform_conversion();
 
-			// Calculate the value of the internal reference.
-			float adc_ref_V = 3.0f * (*VREFINT_CAL) / HAL_ADC_GetValue(&ADC_DEV);
+				// Calculate the value of the internal reference.
+				float adc_ref_V = 3.0f * (*VREFINT_CAL) / HAL_ADC_GetValue(&ADC_DEV);
 
-			thermistor_enable();
-			adc_select_channel(ADC_CHANNEL_THERMISTOR);
-			adc_perform_conversion();
-			thermistor_disable();
+				thermistor_enable();
+				adc_select_channel(ADC_CHANNEL_THERMISTOR);
+				adc_perform_conversion();
+				thermistor_disable();
 
-			float temperature_C = compute_thermistor_temp_C(HAL_ADC_GetValue(&ADC_DEV), adc_ref_V);
+				float temperature_C = compute_thermistor_temp_C(HAL_ADC_GetValue(&ADC_DEV), adc_ref_V);
 
-			led_cmd.id = LED_CMD_FADE;
-			compute_led_color(temperature_C, &led_cmd.color);
-			(void)xQueueSend(LedCmdQHandle, &led_cmd, 0);
-			last_led_change = ticks;
+				led_cmd.id = LED_CMD_FADE;
+				compute_led_color(temperature_C, &led_cmd.color);
+				(void)xQueueSend(LedCmdQHandle, &led_cmd, 0);
+				last_led_change = ticks;
+			}
 		}
-		else if (led_get_active())
+		else
 		{
-			led_cmd.id = LED_CMD_DISABLE;
-			(void)xQueueSend(LedCmdQHandle, &led_cmd, 0);
-			last_led_change = ticks;
+			if (led_get_active() && ((ticks - last_led_change) > 500))
+			{
+				led_cmd.id = LED_CMD_DISABLE;
+				(void)xQueueSend(LedCmdQHandle, &led_cmd, 0);
+				last_led_change = ticks;
+			}
 		}
 
-		osDelayUntil(&last_wake_time, 100);
+		osDelayUntil(&last_wake_time, 200);
 	}
 }
 

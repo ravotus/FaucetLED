@@ -42,6 +42,7 @@
 
 /* External variables --------------------------------------------------------*/
 extern ADC_HandleTypeDef hadc;
+extern TSC_HandleTypeDef htsc;
 
 extern TIM_HandleTypeDef htim6;
 
@@ -98,6 +99,20 @@ void SysTick_Handler(void)
 /* For the available peripheral interrupt handler names,                      */
 /* please refer to the startup file (startup_stm32l0xx.s).                    */
 /******************************************************************************/
+
+/**
+* @brief This function handles Touch sense controller interrupt.
+*/
+void TSC_IRQHandler(void)
+{
+  /* USER CODE BEGIN TSC_IRQn 0 */
+
+  /* USER CODE END TSC_IRQn 0 */
+  HAL_TSC_IRQHandler(&htsc);
+  /* USER CODE BEGIN TSC_IRQn 1 */
+
+  /* USER CODE END TSC_IRQn 1 */
+}
 
 /**
 * @brief This function handles ADC1, COMP1 and COMP2 interrupts (COMP interrupts through EXTI lines 21 and 22).

@@ -73,6 +73,9 @@ osStaticThreadDef_t AdcReaderControlBlock;
 osMessageQId LedCmdQHandle;
 uint8_t LedCmdQBuffer[ 4 * sizeof( LedCmd_S ) ];
 osStaticMessageQDef_t LedCmdQControlBlock;
+osMessageQId TouchDataQHandle;
+uint8_t TouchDataQBuffer[ 2 * sizeof( uint16_t ) ];
+osStaticMessageQDef_t TouchDataQControlBlock;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -170,6 +173,10 @@ int main(void)
   /* definition and creation of LedCmdQ */
   osMessageQStaticDef(LedCmdQ, 4, LedCmd_S, LedCmdQBuffer, &LedCmdQControlBlock);
   LedCmdQHandle = osMessageCreate(osMessageQ(LedCmdQ), NULL);
+
+  /* definition and creation of TouchDataQ */
+  osMessageQStaticDef(TouchDataQ, 2, uint16_t, TouchDataQBuffer, &TouchDataQControlBlock);
+  TouchDataQHandle = osMessageCreate(osMessageQ(TouchDataQ), NULL);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -400,16 +407,17 @@ static void MX_TSC_Init(void)
     /**Configure the TSC peripheral 
     */
   htsc.Instance = TSC;
-  htsc.Init.CTPulseHighLength = TSC_CTPH_16CYCLES;
-  htsc.Init.CTPulseLowLength = TSC_CTPL_16CYCLES;
+  htsc.Init.CTPulseHighLength = TSC_CTPH_2CYCLES;
+  htsc.Init.CTPulseLowLength = TSC_CTPL_2CYCLES;
   htsc.Init.SpreadSpectrum = DISABLE;
   htsc.Init.SpreadSpectrumDeviation = 1;
   htsc.Init.SpreadSpectrumPrescaler = TSC_SS_PRESC_DIV1;
-  htsc.Init.PulseGeneratorPrescaler = TSC_PG_PRESC_DIV8;
+  htsc.Init.PulseGeneratorPrescaler = TSC_PG_PRESC_DIV32;
   htsc.Init.MaxCountValue = TSC_MCV_16383;
   htsc.Init.IODefaultMode = TSC_IODEF_OUT_PP_LOW;
   htsc.Init.SynchroPinPolarity = TSC_SYNC_POLARITY_FALLING;
   htsc.Init.AcquisitionMode = TSC_ACQ_MODE_NORMAL;
+  htsc.Init.MaxCountInterrupt = ENABLE;
   htsc.Init.ChannelIOs = TSC_GROUP5_IO4;
   htsc.Init.SamplingIOs = TSC_GROUP5_IO3;
   if (HAL_TSC_Init(&htsc) != HAL_OK)

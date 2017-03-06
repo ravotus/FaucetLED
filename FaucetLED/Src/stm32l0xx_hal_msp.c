@@ -265,6 +265,9 @@ void HAL_TSC_MspInit(TSC_HandleTypeDef* htsc)
     GPIO_InitStruct.Alternate = GPIO_AF3_TSC;
     HAL_GPIO_Init(TSC_IN_GPIO_Port, &GPIO_InitStruct);
 
+    /* Peripheral interrupt init */
+    HAL_NVIC_SetPriority(TSC_IRQn, 3, 0);
+    HAL_NVIC_EnableIRQ(TSC_IRQn);
   /* USER CODE BEGIN TSC_MspInit 1 */
 
   /* USER CODE END TSC_MspInit 1 */
@@ -288,6 +291,9 @@ void HAL_TSC_MspDeInit(TSC_HandleTypeDef* htsc)
     PB7     ------> TSC_G5_IO4 
     */
     HAL_GPIO_DeInit(GPIOB, TSC_SAMPLING_Pin|TSC_IN_Pin);
+
+    /* Peripheral interrupt DeInit*/
+    HAL_NVIC_DisableIRQ(TSC_IRQn);
 
   }
   /* USER CODE BEGIN TSC_MspDeInit 1 */

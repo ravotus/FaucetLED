@@ -48,6 +48,7 @@
 void NMI_Handler(void);
 void HardFault_Handler(void);
 void SysTick_Handler(void);
+void TSC_IRQHandler(void);
 void ADC1_COMP_IRQHandler(void);
 void TIM6_DAC_IRQHandler(void);
 

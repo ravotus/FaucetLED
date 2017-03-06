@@ -12,17 +12,22 @@
 #define THERMISTOR_T0				10000
 #define THERMISTOR_B				3984
 
+#define TOUCH_NUM_SAMPLES_CAL		10
+#define TOUCH_SENSE_GROUP			TSC_GROUP5_IDX
+
 #define ADC_DEV				hadc
 #define LED_TIMER_DEV		htim2
 #define LPTIM_DEV			hlptim1
 #define HAL_TICK_TIM_DEV	htim7
 #define HAL_TICK_TIM_IRQ	TIM7_IRQn
 #define OPAMP_DEV			hopamp1
+#define TSC_DEV				htsc
 
 extern ADC_HandleTypeDef 	ADC_DEV;
 extern TIM_HandleTypeDef 	LED_TIMER_DEV;
 extern LPTIM_HandleTypeDef	LPTIM_DEV;
 extern TIM_HandleTypeDef	HAL_TICK_TIM_DEV;
+extern TSC_HandleTypeDef	TSC_DEV;
 
 #define APP_LOW_POWER_TICK_HZ	400000
 #define APP_LOW_POWER_MSI_RANGE	RCC_MSIRANGE_2
