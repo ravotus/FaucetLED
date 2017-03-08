@@ -248,6 +248,8 @@ void AdcReaderTask(const void *arg)
 			{
 				// Configure the internal reference channel while the ADC is disabled (required by HAL).
 				adc_select_channel(ADC_CHANNEL_VREFINT);
+				// Work around errata 2.2.1 (perform two conversions back-to-back since first may be invalid).
+				adc_perform_conversion();
 				adc_perform_conversion();
 
 				// Calculate the value of the internal reference.
