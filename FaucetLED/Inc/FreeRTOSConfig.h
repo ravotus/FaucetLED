@@ -174,6 +174,8 @@ standard names. */
 /* USER CODE BEGIN Defines */   	      
 /* Section where parameter definitions can be added (for instance, to override default ones in FreeRTOS.h) */
 #define configSYSTICK_CLOCK_HZ ( configCPU_CLOCK_HZ / 8 )
+
+#define configUSE_TICKLESS_IDLE	1
 /* USER CODE END Defines */ 
 
 #endif /* FREERTOS_CONFIG_H */

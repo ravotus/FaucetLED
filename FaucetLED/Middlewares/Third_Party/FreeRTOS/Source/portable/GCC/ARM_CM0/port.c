@@ -77,6 +77,12 @@
 
 #ifndef configSYSTICK_CLOCK_HZ
 	#define configSYSTICK_CLOCK_HZ configCPU_CLOCK_HZ
+	/* Ensure the SysTick is clocked at the same frequency as the core. */
+	#define portNVIC_SYSTICK_CLK	( 1UL << 2UL )
+#else
+	/* The way the SysTick is clocked is not modified in case it is not the same
+	as the core. */
+	#define portNVIC_SYSTICK_CLK	( 0 )
 #endif
 
 /* Constants required to manipulate the NVIC. */
@@ -85,7 +91,6 @@
 #define portNVIC_SYSTICK_CURRENT_VALUE	(* ( ( volatile uint32_t * ) 0xe000e018 ))
 #define portNVIC_INT_CTRL			( ( volatile uint32_t *) 0xe000ed04 )
 #define portNVIC_SYSPRI2			( ( volatile uint32_t *) 0xe000ed20 )
-#define portNVIC_SYSTICK_CLK		0x00000004
 #define portNVIC_SYSTICK_INT		0x00000002
 #define portNVIC_SYSTICK_ENABLE		0x00000001
 #define portNVIC_SYSTICK_COUNT_FLAG	( 1UL << 16UL )
@@ -566,7 +571,7 @@ __attribute__(( weak )) void vPortSetupTimerInterrupt( void )
 	#endif /* configUSE_TICKLESS_IDLE */
 	/* Configure SysTick to interrupt at the requested rate. */
 
-	portNVIC_SYSTICK_LOAD = ( configCPU_CLOCK_HZ / configTICK_RATE_HZ ) - 1UL;
+	portNVIC_SYSTICK_LOAD = ( configSYSTICK_CLOCK_HZ / configTICK_RATE_HZ ) - 1UL;
 	portNVIC_SYSTICK_CTRL = portNVIC_SYSTICK_CLK | portNVIC_SYSTICK_INT | portNVIC_SYSTICK_ENABLE;
 }
 /*-----------------------------------------------------------*/
