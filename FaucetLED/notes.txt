@@ -141,3 +141,5 @@ Need to investigate why it seems the current oscillates rapidly when I enabled S
 Possibly the external opamp oscillating due to the piezo input?
 
 3/11/2017: Make sure to set BOR level option byte to level 4 or 5 to ensure proper operation when battery gets low.
+Investigated using regulator range 2 instead of range 1 @16MHz - no impact on current consumption. Using range 1
+for 0 wait states.
