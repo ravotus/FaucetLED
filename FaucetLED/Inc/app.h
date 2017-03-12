@@ -18,8 +18,8 @@
 #define ADC_DEV				hadc
 #define LED_TIMER_DEV		htim2
 #define LPTIM_DEV			hlptim1
-#define HAL_TICK_TIM_DEV	htim7
-#define HAL_TICK_TIM_IRQ	TIM7_IRQn
+#define HAL_TICK_TIM_DEV	htim6
+#define HAL_TICK_TIM_IRQ	TIM6_IRQn
 #define OPAMP_DEV			hopamp1
 #define TSC_DEV				htsc
 
@@ -33,7 +33,7 @@ extern TSC_HandleTypeDef	TSC_DEV;
 #define APP_LOW_POWER_MSI_RANGE	RCC_MSIRANGE_2
 
 #define LPTIM_PERIOD		0xffff
-#define LPTIM_CLK_HZ		32000
+#define LPTIM_CLK_HZ		40000
 #define LPTIM_CLK_DIV		1
 
 typedef enum
