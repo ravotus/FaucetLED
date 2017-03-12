@@ -139,3 +139,5 @@ Not temperature dependent
 
 Need to investigate why it seems the current oscillates rapidly when I enabled SHDN (but had never looked at it before).
 Possibly the external opamp oscillating due to the piezo input?
+
+3/11/2017: Make sure to set BOR level option byte to level 4 or 5 to ensure proper operation when battery gets low.
