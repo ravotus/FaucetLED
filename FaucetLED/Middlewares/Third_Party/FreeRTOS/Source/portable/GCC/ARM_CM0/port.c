@@ -598,6 +598,8 @@ uint32_t ulPreviousMask;
 					// We can enter Stop mode directly from Run mode.
 					HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
 				}
+
+				HAL_ResumeTick();
 			}
 
 			/* Stop SysTick.  Again, the time the SysTick is stopped for is
