@@ -85,11 +85,11 @@ osStaticMessageQDef_t TouchDataQControlBlock;
 void SystemClock_Config(void);
 void Error_Handler(void);
 static void MX_GPIO_Init(void);
-void MX_ADC_Init(void);
+static void MX_ADC_Init(void);
 static void MX_TIM2_Init(void);
-static void MX_IWDG_Init(void);
 static void MX_TSC_Init(void);
 static void MX_LPTIM1_Init(void);
+static void MX_IWDG_Init(void);
 void WatchdogTask(void const * argument);
 extern void LedTask(void const * argument);
 extern void AdcReaderTask(void const * argument);
@@ -125,9 +125,9 @@ int main(void)
   MX_GPIO_Init();
   MX_ADC_Init();
   MX_TIM2_Init();
-  MX_IWDG_Init();
   MX_TSC_Init();
   MX_LPTIM1_Init();
+  MX_IWDG_Init();
 
   /* USER CODE BEGIN 2 */
 #ifndef NDEBUG
@@ -261,7 +261,7 @@ void SystemClock_Config(void)
 }
 
 /* ADC init function */
-void MX_ADC_Init(void)
+static void MX_ADC_Init(void)
 {
 
   ADC_ChannelConfTypeDef sConfig;
@@ -270,9 +270,9 @@ void MX_ADC_Init(void)
     */
   hadc.Instance = ADC1;
   hadc.Init.OversamplingMode = DISABLE;
-  hadc.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV64;
+  hadc.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV4;
   hadc.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc.Init.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  hadc.Init.SamplingTime = ADC_SAMPLETIME_7CYCLES_5;
   hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
   hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc.Init.ContinuousConvMode = DISABLE;
@@ -281,7 +281,7 @@ void MX_ADC_Init(void)
   hadc.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc.Init.DMAContinuousRequests = DISABLE;
   hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-  hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+  hadc.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
   hadc.Init.LowPowerAutoWait = DISABLE;
   hadc.Init.LowPowerFrequencyMode = DISABLE;
   hadc.Init.LowPowerAutoPowerOff = ENABLE;
@@ -294,22 +294,6 @@ void MX_ADC_Init(void)
     */
   sConfig.Channel = ADC_CHANNEL_3;
   sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
-  if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-    /**Configure for the selected ADC regular channel to be converted. 
-    */
-  sConfig.Channel = ADC_CHANNEL_9;
-  if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-    /**Configure for the selected ADC regular channel to be converted. 
-    */
-  sConfig.Channel = ADC_CHANNEL_VREFINT;
   if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -472,8 +456,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB0 PB3 PB4 PB5 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5;
+  /*Configure GPIO pins : PB0 BATT_2_Pin PB3 PB4 
+                           PB5 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|BATT_2_Pin|GPIO_PIN_3|GPIO_PIN_4 
+                          |GPIO_PIN_5;
   GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);

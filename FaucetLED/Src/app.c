@@ -48,12 +48,10 @@ static void adc_select_channel(uint32_t channel)
 {
 	ADC_ChannelConfTypeDef adc_channel_config;
 	adc_channel_config.Channel = channel;
-	adc_channel_config.Rank = 1;
+	adc_channel_config.Rank = ADC_RANK_CHANNEL_NUMBER;
 
-	// Deselect any current channels
-	// TODO: Turn off vrefint?
+	// TODO: Check for and disable Vrefint if needed.
 	ADC_DEV.Instance->CHSELR &= ~ADC_CHANNEL_MASK;
-
 	if (HAL_ADC_ConfigChannel(&ADC_DEV, &adc_channel_config) != HAL_OK)
 	{
 		Error_Handler();
@@ -106,17 +104,15 @@ static uint16_t read_touch_sense(void)
 	return tsc_value;
 }
 
-static float compute_thermistor_temp_C(uint16_t adc_counts, float adc_ref_V)
+static float compute_thermistor_temp_C(uint16_t adc_counts)
 {
-	// Calculation of input voltage
-	float temp_input_V = adc_counts * adc_ref_V / 4096.0f;
-
-	// Calculate thermistor R = Vdda * 10k / Vin - 10k
-	float thermistor_R = adc_ref_V * THERMISTOR_R_DIVIDER / temp_input_V - THERMISTOR_R_DIVIDER;
+	// Since Vin = (counts * Vdda) / 4095, substitute in and factor out:
+	// R = 4096 * 10k / counts - 10k
+	float therm_R = 4096 * THERMISTOR_R_DIVIDER / adc_counts - THERMISTOR_R_DIVIDER;
 
 	// Finally use Steinhart-Hart approximation
 	// R_Kelvin = 1/(1/T0 + 1/B*ln(Rtherm/R_T0)), B = 3984, T0 = 25C
-	float temperature_C = 1/(1/298.15f + (1.0f/THERMISTOR_B)*logf(thermistor_R / THERMISTOR_T0)) - 273.15f;
+	float temperature_C = 1/(1/298.15f + (1.0f/THERMISTOR_B)*logf(therm_R / THERMISTOR_T0)) - 273.15f;
 
 	return temperature_C;
 }
@@ -152,8 +148,9 @@ static void compute_led_color(float temp_C, struct led_color *output)
 SleepType_E app_get_sleep_capability(void)
 {
 	uint32_t adc_state = HAL_ADC_GetState(&ADC_DEV);
-	if ((adc_state & HAL_ADC_STATE_REG_BUSY) || (adc_state & HAL_ADC_STATE_INJ_BUSY) ||
-		(HAL_TSC_GroupGetStatus(&TSC_DEV, TOUCH_SENSE_GROUP) != TSC_GROUP_COMPLETED) || led_get_active())
+	if ((adc_state & HAL_ADC_STATE_REG_BUSY) ||
+		(HAL_TSC_GroupGetStatus(&TSC_DEV, TOUCH_SENSE_GROUP) != TSC_GROUP_COMPLETED) ||
+		led_get_active())
 	{
 		return SLEEP_NONE;
 	}
@@ -251,21 +248,13 @@ void AdcReaderTask(const void *arg)
 		{
 			if ((ticks - last_led_change) > 1000)
 			{
-				// Configure the internal reference channel while the ADC is disabled (required by HAL).
-				adc_select_channel(ADC_CHANNEL_VREFINT);
-				// Work around errata 2.2.1 (perform two conversions back-to-back since first may be invalid).
-				adc_perform_conversion();
-				adc_perform_conversion();
-
-				// Calculate the value of the internal reference.
-				float adc_ref_V = 3.0f * (*VREFINT_CAL) / HAL_ADC_GetValue(&ADC_DEV);
-
 				thermistor_enable();
-				adc_select_channel(ADC_CHANNEL_THERMISTOR);
+				//adc_select_channel(ADC_CHANNEL_THERMISTOR);
+				adc_perform_conversion();
 				adc_perform_conversion();
 				thermistor_disable();
 
-				float temperature_C = compute_thermistor_temp_C(HAL_ADC_GetValue(&ADC_DEV), adc_ref_V);
+				float temperature_C = compute_thermistor_temp_C(HAL_ADC_GetValue(&ADC_DEV));
 
 				led_cmd.id = LED_CMD_FADE;
 				compute_led_color(temperature_C, &led_cmd.color);

@@ -295,7 +295,7 @@
 /** @defgroup ADC_Private_Functions ADC Private Functions
   * @{
   */
-HAL_StatusTypeDef ADC_Enable(ADC_HandleTypeDef* hadc);
+static HAL_StatusTypeDef ADC_Enable(ADC_HandleTypeDef* hadc);
 static HAL_StatusTypeDef ADC_Disable(ADC_HandleTypeDef* hadc);
 static HAL_StatusTypeDef ADC_ConversionStop(ADC_HandleTypeDef* hadc);
 static void ADC_DMAConvCplt(DMA_HandleTypeDef *hdma);
@@ -1915,7 +1915,7 @@ uint32_t HAL_ADC_GetError(ADC_HandleTypeDef *hadc)
   * @param  hadc: ADC handle
   * @retval HAL status.
   */
-HAL_StatusTypeDef ADC_Enable(ADC_HandleTypeDef* hadc)
+static HAL_StatusTypeDef ADC_Enable(ADC_HandleTypeDef* hadc)
 {
   uint32_t tickstart = 0U;
 

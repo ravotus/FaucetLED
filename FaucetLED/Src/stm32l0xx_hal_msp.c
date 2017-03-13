@@ -86,18 +86,12 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
     __HAL_RCC_ADC1_CLK_ENABLE();
   
     /**ADC GPIO Configuration    
-    PA3     ------> ADC_IN3
-    PB1     ------> ADC_IN9 
+    PA3     ------> ADC_IN3 
     */
     GPIO_InitStruct.Pin = THERM_SENSE_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(THERM_SENSE_GPIO_Port, &GPIO_InitStruct);
-
-    GPIO_InitStruct.Pin = BATT_2_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(BATT_2_GPIO_Port, &GPIO_InitStruct);
 
     /* Peripheral interrupt init */
     HAL_NVIC_SetPriority(ADC1_COMP_IRQn, 3, 0);
@@ -121,12 +115,9 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* hadc)
     __HAL_RCC_ADC1_CLK_DISABLE();
   
     /**ADC GPIO Configuration    
-    PA3     ------> ADC_IN3
-    PB1     ------> ADC_IN9 
+    PA3     ------> ADC_IN3 
     */
     HAL_GPIO_DeInit(THERM_SENSE_GPIO_Port, THERM_SENSE_Pin);
-
-    HAL_GPIO_DeInit(BATT_2_GPIO_Port, BATT_2_Pin);
 
     /* Peripheral interrupt DeInit*/
     HAL_NVIC_DisableIRQ(ADC1_COMP_IRQn);

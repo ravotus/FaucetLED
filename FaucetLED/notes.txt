@@ -31,8 +31,8 @@ For the HAL layer to clear the Tx state properly, the USART global interrupt mus
 Tx and Rx interrupts. Furthermore, it appears that setting/clearing the MINC bit does not seem to take affect - perhaps 
 a re-initialization of the peripheral is needed?
 
-ADC Data
-========
+ADC
+===
 Need to ensure proper sampling time. Currently, using relatively slow sample rate:
 Fadc = 80MHz / 256 = 312.5kHz. tsample_opamp = 1/312.5kHz * (12.5cycle + 47.5cycle) = 192uS => Fsample = 5.208kHz
 
@@ -42,6 +42,18 @@ To convert to float, the following operations need to happen:
 3. Multiply the resulting data (which will be in the range [0, 1] by the vdda_value to obtain the final value with arm_scale_f32).
 The first step can be omitted if the data is left-aligned with a sign bit. I accomplished this by setting the data left-aligned
 with an offset of 0, which per the RM means there will be 1 sign bit followed by 12 data bits, exactly the format from step 1.
+
+When using STOP mode with low-power regulator, seem to get bad data with clock frequency < 2MHz (even though low-frequency mode 
+is enabled). Regardless of auto-off or wait settings. Also tried both synchronous and async clocks. Using main regulator fixes
+the issue but isn't viable due to current consumption.
+
+Sample time for thermistor on L0:
+Internal sample-and-hold cap: 8pF
+Radc max: 1k
+Il: +/- 50nA
+Therm_max = 20k
+5*TC = 5*R*C = 5*(1k+20k)*8pF = 840ns
+Choose Fadc = 4MHz (to avoid low F mode), Ts = 7.5cycles = 1.87us
 
 LED Color Calculations
 ======================
@@ -143,3 +155,10 @@ Possibly the external opamp oscillating due to the piezo input?
 3/11/2017: Make sure to set BOR level option byte to level 4 or 5 to ensure proper operation when battery gets low.
 Investigated using regulator range 2 instead of range 1 @16MHz - no impact on current consumption. Using range 1
 for 0 wait states.
+Batt_2 input seems not to work.
+
+// Since Vin = (counts * Vdda) / 4096, substitute in and factor out:
+// R = 4096 * 10k / counts - 10k
+float therm_R2 = 4096 * THERMISTOR_R_DIVIDER / adc_counts - THERMISTOR_R_DIVIDER;
+
+HAL_ADCEx_EnableVREFINT();
