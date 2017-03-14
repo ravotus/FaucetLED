@@ -262,14 +262,11 @@ void AdcReaderTask(const void *arg)
 				last_led_change = ticks;
 			}
 		}
-		else
+		else if (led_get_active() && ((ticks - last_led_change) > 500))
 		{
-			if (led_get_active() && ((ticks - last_led_change) > 500))
-			{
-				led_cmd.id = LED_CMD_DISABLE;
-				(void)xQueueSend(LedCmdQHandle, &led_cmd, 0);
-				last_led_change = ticks;
-			}
+			led_cmd.id = LED_CMD_DISABLE;
+			(void)xQueueSend(LedCmdQHandle, &led_cmd, 0);
+			last_led_change = ticks;
 		}
 
 		osDelayUntil(&last_wake_time, 200);
