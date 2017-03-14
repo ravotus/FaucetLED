@@ -55,7 +55,8 @@ typedef enum
 	NUM_SLEEP_TYPES
 } SleepType_E;
 
-#define LED_FADE_INCREMENTS	20
+#define LED_FADE_DELAY_MS	25
+#define LED_FADE_INCREMENTS	40
 
 #define LED_CMD_DISABLE		0x01
 #define LED_CMD_SET			0x02

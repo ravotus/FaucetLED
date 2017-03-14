@@ -276,7 +276,7 @@ void AdcReaderTask(const void *arg)
 static inline int calc_color(int old_color, int new_color, int inc, int increments)
 {
 	// Important: This math relies on signed values
-	return old_color + (((new_color - old_color) * inc) / increments);
+	return ((old_color * (increments - inc)) + (new_color * inc)) / increments;
 }
 
 void LedTask(void const *arg)
@@ -309,7 +309,7 @@ void LedTask(void const *arg)
 					fade_color.blue = calc_color(old_color.blue, command.color.blue, i, LED_FADE_INCREMENTS);
 					led_set(&fade_color);
 
-					osDelay(25);
+					osDelay(LED_FADE_DELAY_MS);
 				}
 			}
 			else
