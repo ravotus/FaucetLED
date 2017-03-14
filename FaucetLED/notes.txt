@@ -86,6 +86,15 @@ arm_math.h's arm_sqrt_f32() implementation was calling some double-precision cod
 inline assembler with vsqrt.f32 instruction (I chose the latter). powf and logf also appear to use some double-precision calls,
 as evidenced by some calls to __adddf3, __aeabi_dsub, and __subdf3 in the sizes output.
 
+Flash/EEPROM
+============
+EEPROM example:
+HAL_FLASHEx_DATAEEPROM_Unlock();
+HAL_FLASHEx_DATAEEPROM_EnableFixedTimeProgram();
+HAL_FLASHEx_DATAEEPROM_Erase(DATA_EEPROM_BASE);
+HAL_FLASHEx_DATAEEPROM_Program(FLASH_TYPEPROGRAMDATA_WORD, DATA_EEPROM_BASE, 0xdeadbeef);
+HAL_FLASHEx_DATAEEPROM_Lock();
+
 Low-Power Modes
 ===============
 12/24/16: Low-power idle is working for the most part with HCLK=100kHz using the SysTick timer. Decided to treat each tick as 1s in low power mode,
