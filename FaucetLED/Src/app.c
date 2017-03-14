@@ -114,30 +114,33 @@ static float compute_thermistor_temp_C(uint16_t adc_counts)
 	return temperature_C;
 }
 
-static void compute_led_color(float temp_C, struct led_color *output)
+static void compute_led_color(uint32_t temp_C, struct led_color *output)
 {
 	if (!output)
 	{
 		return;
 	}
 
-	if (temp_C > 26.0f)
-	{
-		// Hot (26-60C)
-		const float M = -7.5f;
-		const float B = 450.0f;
-		output->red = 255;
-		output->green = (uint8_t)(powf(2.0f, (temp_C * M + B) * 8.0f / 255.0f) - 1);
-		output->blue = output->green;
+	memset(output, 0, sizeof(*output));
 
+	if (temp_C > 60)
+	{
+		output->red = 255;
+	}
+	else if (temp_C > 26)
+	{
+		// Linear fit 26..60C to 0..8, then convert log scale with 2**x.
+		// y = (8-0)/(60-26)*(x-26)
+		output->red = 1<<(((4*(temp_C-26)))/17);
+	}
+	else if (temp_C > 10)
+	{
+		// Linear 10..26C to 8..0, then convert to log scale.
+		// y = (0-8)/(26-10)*(x-26) => y = (26-x)/2
+		output->blue = 1<<(((26-temp_C))/2);
 	}
 	else
 	{
-		// Cold (10-26C)
-		const float M = 15.9375f;
-		const float B = -159.375f;
-		output->red = (uint8_t)(powf(2.0f, (temp_C * M + B) * 8.0f / 255.0f) - 1);
-		output->green = output->red;
 		output->blue = 255;
 	}
 }
@@ -254,7 +257,7 @@ void AdcReaderTask(const void *arg)
 				float temperature_C = compute_thermistor_temp_C(HAL_ADC_GetValue(&ADC_DEV));
 
 				led_cmd.id = LED_CMD_FADE;
-				compute_led_color(temperature_C, &led_cmd.color);
+				compute_led_color((uint32_t)temperature_C, &led_cmd.color);
 				(void)xQueueSend(LedCmdQHandle, &led_cmd, 0);
 				last_led_change = ticks;
 			}
