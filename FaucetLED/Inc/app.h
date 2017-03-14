@@ -8,9 +8,20 @@
 #define ADC_CHANNEL_THERMISTOR		ADC_CHANNEL_3
 #define ADC_CHANNEL_BATT_2			ADC_CHANNEL_9
 
-#define THERMISTOR_R_DIVIDER		10000
-#define THERMISTOR_T0				10000
-#define THERMISTOR_B				3984
+/*
+# Coefficients generated with numpy:
+import numpy as np
+Rmin = 10000/(10000+20566)*4096
+Rmax = 10000/(10000+2391)*4096
+x = np.linspace(Rmin, Rmax)
+Rx = 4096*10000/x-10000
+y = 1/(1/298.15 + (1/3984)*np.log(Rx / 10000)) - 273.15
+p3 = np.poly1d(np.polyfit(x, y, 3))
+ */
+#define THERMISTOR_X3				(  3.02699542e-09f )
+#define THERMISTOR_X2				( -1.69900492e-05f )
+#define THERMISTOR_X1				(  5.28952553e-02f )
+#define THERMISTOR_X0				( -3.80715314e+01f )
 
 #define TOUCH_NUM_SAMPLES_CAL		10
 #define TOUCH_SENSE_GROUP			TSC_GROUP5_IDX

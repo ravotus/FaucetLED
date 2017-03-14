@@ -106,14 +106,11 @@ static uint16_t read_touch_sense(void)
 
 static float compute_thermistor_temp_C(uint16_t adc_counts)
 {
-	// Since Vin = (counts * Vdda) / 4095, substitute in and factor out:
-	// R = 4096 * 10k / counts - 10k
-	float therm_R = 4096 * THERMISTOR_R_DIVIDER / adc_counts - THERMISTOR_R_DIVIDER;
-
-	// Finally use Steinhart-Hart approximation
-	// R_Kelvin = 1/(1/T0 + 1/B*ln(Rtherm/R_T0)), B = 3984, T0 = 25C
-	float temperature_C = 1/(1/298.15f + (1.0f/THERMISTOR_B)*logf(therm_R / THERMISTOR_T0)) - 273.15f;
-
+	float counts_f = adc_counts;
+	float temperature_C =  THERMISTOR_X3*(counts_f*counts_f*counts_f) +
+						   THERMISTOR_X2*(counts_f*counts_f) +
+						   THERMISTOR_X1*(counts_f) +
+						   THERMISTOR_X0;
 	return temperature_C;
 }
 
