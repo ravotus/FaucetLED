@@ -123,7 +123,7 @@ static void compute_led_color(uint32_t temp_C, struct led_color *output)
 
 	memset(output, 0, sizeof(*output));
 
-	if (temp_C > 60)
+	if (temp_C >= 60)
 	{
 		output->red = 255;
 	}
@@ -246,7 +246,7 @@ void AdcReaderTask(const void *arg)
 		// TODO: Compensate for drift in touch sensor value.
 		if ((touch_val < touch_cal) && ((10*touch_cal / touch_val)) >= 11)
 		{
-			if ((ticks - last_led_change) > 1000)
+			if ((ticks - last_led_change) > LED_UPDATE_DURATION_MS)
 			{
 				thermistor_enable();
 				//adc_select_channel(ADC_CHANNEL_THERMISTOR);
@@ -262,7 +262,7 @@ void AdcReaderTask(const void *arg)
 				last_led_change = ticks;
 			}
 		}
-		else if (led_get_active() && ((ticks - last_led_change) > 500))
+		else if (led_get_active() && ((ticks - last_led_change) > LED_DISABLE_DURATION_MS))
 		{
 			led_cmd.id = LED_CMD_DISABLE;
 			(void)xQueueSend(LedCmdQHandle, &led_cmd, 0);
@@ -302,14 +302,34 @@ void LedTask(void const *arg)
 			{
 				led_get(&old_color);
 
-				for (int i=1; i<=LED_FADE_INCREMENTS; ++i)
+				// Only update the color if the color has changed to help prevent flicker.
+				if (old_color.red != command.color.red ||
+					old_color.green != command.color.green ||
+					old_color.blue != command.color.blue)
 				{
-					fade_color.red = calc_color(old_color.red, command.color.red, i, LED_FADE_INCREMENTS);
-					fade_color.green = calc_color(old_color.green, command.color.green, i, LED_FADE_INCREMENTS);
-					fade_color.blue = calc_color(old_color.blue, command.color.blue, i, LED_FADE_INCREMENTS);
-					led_set(&fade_color);
+					for (int i=1; i<=LED_FADE_INCREMENTS; ++i)
+					{
+						int r = calc_color(old_color.red, command.color.red, i, LED_FADE_INCREMENTS);
+						int g = calc_color(old_color.green, command.color.green, i, LED_FADE_INCREMENTS);
+						int b = calc_color(old_color.blue, command.color.blue, i, LED_FADE_INCREMENTS);
 
-					osDelay(LED_FADE_DELAY_MS);
+						configASSERT(r >= 0 && g >= 0 && b >= 0 && r <= 255 && g <= 255 && b <= 255);
+
+						// When fading between colors, don't set to fully black to avoid the appearance
+						// of the LED turning off then on again.
+						if ((r == 0 && g == 0 && b == 0) &&
+						    (command.color.red != 0 || command.color.green != 0 || command.color.blue != 0))
+						{
+							continue;
+						}
+
+						fade_color.red = r;
+						fade_color.green = g;
+						fade_color.blue = b;
+						led_set(&fade_color);
+
+						osDelay(LED_FADE_DELAY_MS);
+					}
 				}
 			}
 			else

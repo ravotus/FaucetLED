@@ -55,7 +55,11 @@ typedef enum
 	NUM_SLEEP_TYPES
 } SleepType_E;
 
-#define LED_FADE_DELAY_MS	25
+#define LED_UPDATE_DURATION_MS	1000
+#define LED_DISABLE_DURATION_MS	500
+
+// The total time to fade the LED should be < LED_UPDATE_DURATION_MS
+#define LED_FADE_DELAY_MS	20
 #define LED_FADE_INCREMENTS	40
 
 #define LED_CMD_DISABLE		0x01

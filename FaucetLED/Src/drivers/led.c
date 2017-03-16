@@ -92,6 +92,13 @@ enum led_error led_set(const struct led_color *color)
 	{
 		return LED_EINVAL;
 	}
+	else if (active &&
+			 current_color.red == color->red &&
+			 current_color.green == color->green &&
+			 current_color.blue == color->blue)
+	{
+		return LED_EOK;
+	}
 
 	active = true;
 
