@@ -46,9 +46,6 @@ extern LPTIM_HandleTypeDef	LPTIM_DEV;
 extern TIM_HandleTypeDef	HAL_TICK_TIM_DEV;
 extern TSC_HandleTypeDef	TSC_DEV;
 
-#define APP_LOW_POWER_TICK_HZ	400000
-#define APP_LOW_POWER_MSI_RANGE	RCC_MSIRANGE_2
-
 #define LPTIM_PERIOD		0xffff
 #define LPTIM_CLK_HZ		40000
 #define LPTIM_CLK_DIV		1
@@ -56,7 +53,6 @@ extern TSC_HandleTypeDef	TSC_DEV;
 typedef enum
 {
 	SLEEP_NONE,
-	SLEEP_LOW_POWER,
 	SLEEP_STOP,
 	NUM_SLEEP_TYPES
 } SleepType_E;

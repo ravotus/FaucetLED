@@ -413,9 +413,6 @@ uint32_t ulPreviousMask;
 
 #define STOP_TICKS_RATIO		( configSYSTICK_CLOCK_HZ / LPTIM_CLK_HZ )
 
-#define LOW_POWER_TICK_HZ		( APP_LOW_POWER_TICK_HZ / ( configCPU_CLOCK_HZ / configSYSTICK_CLOCK_HZ ) )
-#define LOW_POWER_TICKS_RATIO 	( configSYSTICK_CLOCK_HZ / APP_LOW_POWER_TICK_HZ )
-
 	__attribute__((weak)) void vPortSuppressTicksAndSleep( TickType_t xExpectedIdleTime )
 	{
 	SleepType_E sleep_type;
@@ -430,18 +427,6 @@ uint32_t ulPreviousMask;
 			xMaximumPossibleSuppressedTicks = configTICK_RATE_HZ * LPTIM_PERIOD / ( LPTIM_CLK_HZ / LPTIM_CLK_DIV );
 			ulStoppedTimerCompensation = portMISSED_COUNTS_FACTOR;
 		}
-#if 0
-		else if (SLEEP_LOW_POWER == sleep_type)
-		{
-			// Treat low-power ticks == low-power frequency, for simplicity.
-			// Ticks don't mean anything when sleeping anyway.
-
-			ulTimerCountsForOneTick = (configSYSTICK_CLOCK_HZ / configTICK_RATE_HZ);
-
-			xMaximumPossibleSuppressedTicks = portMAX_24_BIT_NUMBER / LOW_POWER_TICK_HZ;
-			ulStoppedTimerCompensation = portMISSED_COUNTS_FACTOR;
-		}
-#endif
 		else
 		{
 			ulTimerCountsForOneTick = (configSYSTICK_CLOCK_HZ / configTICK_RATE_HZ);
@@ -470,13 +455,6 @@ uint32_t ulPreviousMask;
 			ulReloadValue = (portNVIC_SYSTICK_CURRENT_VALUE / STOP_TICKS_RATIO) +
 					( ulTimerCountsForOneTick * ( xExpectedIdleTime - 1UL ) );
 		}
-#if 0
-		else if (SLEEP_LOW_POWER == sleep_type)
-		{
-			ulReloadValue = (portNVIC_SYSTICK_CURRENT_VALUE / LOW_POWER_TICKS_RATIO) +
-					(( LOW_POWER_TICK_HZ * ( xExpectedIdleTime - 1UL )) / configTICK_RATE_HZ);
-		}
-#endif
 		else // SLEEP_NONE
 		{
 			ulReloadValue = portNVIC_SYSTICK_CURRENT_VALUE + ( ulTimerCountsForOneTick * ( xExpectedIdleTime - 1UL ) );
@@ -539,65 +517,20 @@ uint32_t ulPreviousMask;
 				__HAL_FLASH_SLEEP_POWERDOWN_ENABLE();
 
 				HAL_SuspendTick();
-#if 0
-				if (SLEEP_LOW_POWER == sleep_type)
-				{
-					RCC_OscInitTypeDef RCC_OscInitStruct;
-					// Configure MSI for lower speed which will automatically scale the sysclk.
-					RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
-					RCC_OscInitStruct.MSIState = RCC_MSI_ON;
-					RCC_OscInitStruct.HSIState = RCC_HSI_OFF;
-					RCC_OscInitStruct.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
-					RCC_OscInitStruct.MSIClockRange = APP_LOW_POWER_MSI_RANGE;
-					RCC_OscInitStruct.PLL.PLLState = RCC_PLL_OFF;
-					if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-					{
-						Error_Handler();
-					}
 
-					// Use low-power voltage scaling mode.
-					if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE2) != HAL_OK)
-					{
-						Error_Handler();
-					}
+				// Stop SysTick so it doesn't wake us immediately.
+				ulSysTickCTRL = portNVIC_SYSTICK_CTRL;
+				portNVIC_SYSTICK_CTRL = ( ulSysTickCTRL & ~portNVIC_SYSTICK_ENABLE );
 
-					// Prevent the STM32 HAL tick timer from waking us up, since the RCC HAL function
-					// likes to re-enable it.
-					HAL_TIM_Base_Stop_IT(&HAL_TICK_TIM_DEV);
-					HAL_NVIC_DisableIRQ(HAL_TICK_TIM_IRQ);
+				// Wake up directly to the HSI clock.
+				__HAL_RCC_WAKEUPSTOP_CLK_CONFIG(RCC_STOP_WAKEUPCLOCK_HSI);
 
-					HAL_PWR_EnterSLEEPMode( PWR_LOWPOWERREGULATOR_ON, PWR_SLEEPENTRY_WFI );
+				// Configure LPTIM1 to wake us, since the systick will be stopped.
+				HAL_LPTIM_OnePulse_Start(&LPTIM_DEV, ulReloadValue, ulReloadValue);
+				__HAL_LPTIM_ENABLE_IT(&LPTIM_DEV, LPTIM_IT_CMPM);
 
-					// Post-sleep processing
-					HAL_PWREx_DisableLowPowerRunMode();
-
-					// Return to high-performance voltage scaling mode.
-					if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1) != HAL_OK)
-					{
-						Error_Handler();
-					}
-
-					// Re-initialize core clock configuration. This will also resume the HAL tick.
-					extern void SystemClock_Config(void);
-					SystemClock_Config();
-				}
-				else // SLEEP_STOP
-#endif
-				{
-					// Stop SysTick so it doesn't wake us immediately.
-					ulSysTickCTRL = portNVIC_SYSTICK_CTRL;
-					portNVIC_SYSTICK_CTRL = ( ulSysTickCTRL & ~portNVIC_SYSTICK_ENABLE );
-
-					// Wake up directly to the HSI clock.
-					__HAL_RCC_WAKEUPSTOP_CLK_CONFIG(RCC_STOP_WAKEUPCLOCK_HSI);
-
-					// Configure LPTIM1 to wake us, since the systick will be stopped.
-					HAL_LPTIM_OnePulse_Start(&LPTIM_DEV, ulReloadValue, ulReloadValue);
-					__HAL_LPTIM_ENABLE_IT(&LPTIM_DEV, LPTIM_IT_CMPM);
-
-					// We can enter Stop mode directly from Run mode.
-					HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
-				}
+				// We can enter Stop mode directly from Run mode.
+				HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
 
 				HAL_ResumeTick();
 			}
@@ -627,12 +560,6 @@ uint32_t ulPreviousMask;
 					// For now, don't bother to compensate for any extra time that may have elapsed since the LPTIM woke us.
 					ulCalculatedLoadValue = ( ulTimerCountsForOneTick - 1UL );
 				}
-#if 0
-				else if (SLEEP_LOW_POWER == sleep_type)
-				{
-					ulCalculatedLoadValue = ( ulTimerCountsForOneTick - 1UL ) - (( ulReloadValue - portNVIC_SYSTICK_CURRENT_VALUE ) * LOW_POWER_TICK_HZ / configTICK_RATE_HZ);
-				}
-#endif
 				else
 				{
 					ulCalculatedLoadValue = ( ulTimerCountsForOneTick - 1UL ) - ( ulReloadValue - portNVIC_SYSTICK_CURRENT_VALUE );
@@ -666,12 +593,6 @@ uint32_t ulPreviousMask;
 					ulCompletedSysTickDecrements = (( xExpectedIdleTime * ulTimerCountsForOneTick ) * STOP_TICKS_RATIO) -
 							(uint16_t)(0x0000ffff - (0x0000ffff & HAL_LPTIM_ReadCounter(&LPTIM_DEV)));
 				}
-#if 0
-				else if (SLEEP_LOW_POWER == sleep_type)
-				{
-					ulCompletedSysTickDecrements = ( xExpectedIdleTime * LOW_POWER_TICK_HZ ) - (portNVIC_SYSTICK_CURRENT_VALUE * LOW_POWER_TICKS_RATIO);
-				}
-#endif
 				else
 				{
 					ulCompletedSysTickDecrements = ( xExpectedIdleTime * ulTimerCountsForOneTick ) - portNVIC_SYSTICK_CURRENT_VALUE;

@@ -147,21 +147,12 @@ static void compute_led_color(uint32_t temp_C, struct led_color *output)
 
 SleepType_E app_get_sleep_capability(void)
 {
-	uint32_t adc_state = HAL_ADC_GetState(&ADC_DEV);
-	if ((adc_state & HAL_ADC_STATE_REG_BUSY) ||
+	if ((HAL_ADC_GetState(&ADC_DEV) & HAL_ADC_STATE_REG_BUSY) ||
 		(HAL_TSC_GroupGetStatus(&TSC_DEV, TOUCH_SENSE_GROUP) != TSC_GROUP_COMPLETED) ||
 		led_get_active())
 	{
 		return SLEEP_NONE;
 	}
-	// TODO: Low-power sleep support while LED is on.
-	// When complete, remove led_get_active() call from check above.
-#if 0
-	else if (led_get_active())
-	{
-		return SLEEP_LOW_POWER;
-	}
-#endif
 	else
 	{
 		return SLEEP_STOP;
