@@ -11,17 +11,23 @@
 /*
 # Coefficients generated with numpy:
 import numpy as np
-Rmin = 10000/(10000+20566)*4096
-Rmax = 10000/(10000+2391)*4096
-x = np.linspace(Rmin, Rmax)
+Rmin = 2874
+Rmax = 20566
+AdcMin = 10000/(10000+Rmax)*4096  # 55C
+AdcMax = 10000/(10000+Rmin)*4096   # 10C
+x = np.linspace(AdcMin, AdcMax)
 Rx = 4096*10000/x-10000
-y = 1/(1/298.15 + (1/3984)*np.log(Rx / 10000)) - 273.15
-p3 = np.poly1d(np.polyfit(x, y, 3))
+# Note: Need to subtract 273.15 from y to convert to C.
+y = 1/(1/298.15 + (1/3984)*np.log(Rx / 10000))
+p2 = np.poly1d(np.polyfit(x, y, 2))
+
+>>> max(abs(y-p2(x)))
+0.95293751583449193
  */
-#define THERMISTOR_X3				(  3.02699542e-09f )
-#define THERMISTOR_X2				( -1.69900492e-05f )
-#define THERMISTOR_X1				(  5.28952553e-02f )
-#define THERMISTOR_X0				( -3.80715314e+01f )
+#define THERMISTOR_X2				(  3.42794262e-06f )
+#define THERMISTOR_X1				(  8.55486576e-03f )
+#define THERMISTOR_X0				(  2.65963480e+02f )
+#define THERMISTOR_OFFSET			( -273.15f )
 
 #define TOUCH_NUM_SAMPLES_CAL		10
 #define TOUCH_SENSE_GROUP			TSC_GROUP5_IDX

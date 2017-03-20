@@ -107,10 +107,10 @@ static uint16_t read_touch_sense(void)
 static float compute_thermistor_temp_C(uint16_t adc_counts)
 {
 	float counts_f = adc_counts;
-	float temperature_C =  THERMISTOR_X3*(counts_f*counts_f*counts_f) +
-						   THERMISTOR_X2*(counts_f*counts_f) +
+	float temperature_C =  THERMISTOR_X2*(counts_f*counts_f) +
 						   THERMISTOR_X1*(counts_f) +
-						   THERMISTOR_X0;
+						  (THERMISTOR_X0 +
+						   THERMISTOR_OFFSET);
 	return temperature_C;
 }
 
@@ -123,19 +123,19 @@ static void compute_led_color(uint32_t temp_C, struct led_color *output)
 
 	memset(output, 0, sizeof(*output));
 
-	if (temp_C >= 60)
+	if (temp_C >= 55)
 	{
 		output->red = 255;
 	}
 	else if (temp_C >= 28)
 	{
-		// Linear fit 28..60C to 0..8, then convert log scale with 2**x.
-		// y = (8-0)/(60-28)*(x-28) => y = (x-28)/4
-		output->red = 1<<((1*(temp_C-28))/4);
+		// Linear fit 28<=x<55C to 0<x<8, then convert log scale with 2**x.
+		// y = (8-0)/(55-28)*(x-28) => y = 8*(x-28)/27
+		output->red = 1<<((8*(temp_C-28))/27);
 	}
-	else if (temp_C >= 10)
+	else if (temp_C > 10)
 	{
-		// Linear 10..27C to 8..0, then convert to log scale.
+		// Linear fit 10<x<=27C to 8>x>0, then convert to log scale.
 		// y = (0-8)/(27-10)*(x-26) => y = 8*(27-x)/17
 		output->blue = 1<<(8*(27-temp_C)/17);
 	}
