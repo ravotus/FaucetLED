@@ -127,17 +127,17 @@ static void compute_led_color(uint32_t temp_C, struct led_color *output)
 	{
 		output->red = 255;
 	}
-	else if (temp_C > 26)
+	else if (temp_C >= 28)
 	{
-		// Linear fit 26..60C to 0..8, then convert log scale with 2**x.
-		// y = (8-0)/(60-26)*(x-26)
-		output->red = 1<<(((4*(temp_C-26)))/17);
+		// Linear fit 28..60C to 0..8, then convert log scale with 2**x.
+		// y = (8-0)/(60-28)*(x-28) => y = (x-28)/4
+		output->red = 1<<((1*(temp_C-28))/4);
 	}
-	else if (temp_C > 10)
+	else if (temp_C >= 10)
 	{
-		// Linear 10..26C to 8..0, then convert to log scale.
-		// y = (0-8)/(26-10)*(x-26) => y = (26-x)/2
-		output->blue = 1<<(((26-temp_C))/2);
+		// Linear 10..27C to 8..0, then convert to log scale.
+		// y = (0-8)/(27-10)*(x-26) => y = 8*(27-x)/17
+		output->blue = 1<<(8*(27-temp_C)/17);
 	}
 	else
 	{
