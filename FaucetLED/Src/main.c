@@ -130,11 +130,6 @@ int main(void)
   MX_IWDG_Init();
 
   /* USER CODE BEGIN 2 */
-#ifndef NDEBUG
-  // Stop IWDG when the core is halted by a debugger.
-  __HAL_DBGMCU_FREEZE_IWDG();
-#endif
-
   HAL_GPIO_WritePin(LED_DBG_GPIO_Port, LED_DBG_Pin, GPIO_PIN_RESET);
   led_init(&LED_TIMER_DEV, LED_TIM_PERIOD);
   led_disable();
