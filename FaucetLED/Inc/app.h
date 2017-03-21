@@ -104,4 +104,18 @@ typedef struct
 
 SleepType_E app_get_sleep_capability(void);
 
+
+#define TOUCH_CAL_BASE			(DATA_EEPROM_BASE+0)
+#define TOUCH_CAL_HISTORY_LEN	32
+#define TOUCH_CAL_EMPTY			0
+#define TOUCH_DATA_UPDATE_MS	30000
+
+typedef struct
+{
+	uint16_t cal_value;
+	uint16_t unused;
+	uint16_t touch_high;
+	uint16_t touch_low;
+} TouchCal_s;
+
 #endif /* __APP_H__ */

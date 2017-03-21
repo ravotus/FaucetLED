@@ -50,6 +50,8 @@ extern QueueHandle_t LedCmdQHandle;
 
 static TaskHandle_t adc_task_handle = NULL;
 
+static volatile TouchCal_s *touch_data_store = (volatile TouchCal_s *)TOUCH_CAL_BASE;
+
 static const struct led_color green = {
 	.red = 0,
 	.green = 128,
@@ -169,6 +171,22 @@ static void compute_led_color(int32_t temp_C, struct led_color *output)
 	}
 }
 
+static void update_touch_data(TouchCal_s *touch_data, TouchCal_s *data_store_item)
+{
+	HAL_FLASHEx_DATAEEPROM_Unlock();
+	HAL_FLASHEx_DATAEEPROM_EnableFixedTimeProgram();
+
+	for (unsigned i=0; i<sizeof(TouchCal_s); i+=sizeof(uint32_t))
+	{
+		uint32_t address = ((uint32_t)data_store_item) + i;
+		uint32_t data = *(uint32_t *)(((uint8_t *)touch_data) + i);
+		HAL_FLASHEx_DATAEEPROM_Erase(address);
+		HAL_FLASHEx_DATAEEPROM_Program(FLASH_TYPEPROGRAMDATA_WORD, address, data);
+	}
+
+	HAL_FLASHEx_DATAEEPROM_Lock();
+}
+
 SleepType_E app_get_sleep_capability(void)
 {
 	if ((HAL_ADC_GetState(&ADC_DEV) & HAL_ADC_STATE_REG_BUSY) ||
@@ -225,9 +243,12 @@ void AdcReaderTask(const void *arg)
 	(void)arg;
 	uint32_t last_wake_time;
 	uint32_t last_led_change;
+	uint32_t last_touch_update;
 	uint16_t touch_val;
 	uint32_t ticks;
 	LedCmd_S led_cmd;
+	TouchCal_s app_touch_data;
+	volatile TouchCal_s *touch_data_item;
 
 	adc_task_handle = xTaskGetCurrentTaskHandle();
 
@@ -245,16 +266,57 @@ void AdcReaderTask(const void *arg)
 
 	touch_cal /= TOUCH_NUM_SAMPLES_CAL;
 
+	if (TOUCH_CAL_EMPTY == touch_cal)
+	{
+		Error_Handler();
+	}
+
+	touch_data_item = touch_data_store;
+
+	for (unsigned i=0; i<TOUCH_CAL_HISTORY_LEN; ++i)
+	{
+		if (TOUCH_CAL_EMPTY == touch_data_store[i].cal_value)
+		{
+			// Found an open spot.
+			touch_data_item = &touch_data_store[i];
+			break;
+		}
+	}
+
+
+	HAL_FLASHEx_DATAEEPROM_Unlock();
+
+	// Erase the next item in the list
+	if ((touch_data_item+1) == &touch_data_store[TOUCH_CAL_HISTORY_LEN])
+	{
+		HAL_FLASHEx_DATAEEPROM_Erase((uint32_t)touch_data_store);
+	}
+	else
+	{
+		HAL_FLASHEx_DATAEEPROM_Erase((uint32_t)(touch_data_item+1));
+	}
+
+	HAL_FLASHEx_DATAEEPROM_Lock();
+
+	app_touch_data.cal_value = touch_cal;
+	app_touch_data.unused = 0;
+	app_touch_data.touch_high = 0;
+	app_touch_data.touch_low = 0xffff;
+
+	update_touch_data(&app_touch_data, (TouchCal_s *)touch_data_item);
+
 	led_cmd.id = LED_CMD_SET;
 	led_cmd.color = green;
 	(void)xQueueSend(LedCmdQHandle, &led_cmd, 0);
 
 	last_wake_time = osKernelSysTick();
 	last_led_change = last_wake_time;
+	last_touch_update = last_wake_time;
 
 	while (1)
 	{
 		touch_val = read_touch_sense();
+
 		ticks = osKernelSysTick();
 
 		// Check if the read value is at least 10% less than the calibration value.
@@ -282,6 +344,24 @@ void AdcReaderTask(const void *arg)
 			led_cmd.id = LED_CMD_DISABLE;
 			(void)xQueueSend(LedCmdQHandle, &led_cmd, 0);
 			last_led_change = ticks;
+		}
+
+		// Update logged touch information
+		if (touch_val < app_touch_data.touch_low)
+		{
+			app_touch_data.touch_low = touch_val;
+		}
+		if (touch_val > app_touch_data.touch_high)
+		{
+			app_touch_data.touch_high = touch_val;
+		}
+		if ((ticks - last_touch_update) > TOUCH_DATA_UPDATE_MS)
+		{
+			if ((app_touch_data.touch_low != touch_data_item->touch_low) ||
+		        (app_touch_data.touch_high != touch_data_item->touch_high))
+			{
+				update_touch_data(&app_touch_data, (TouchCal_s *)touch_data_item);
+			}
 		}
 
 		osDelayUntil(&last_wake_time, 200);
