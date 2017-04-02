@@ -105,12 +105,15 @@ void vApplicationMallocFailedHook(void)
 	while(1);
 }
 
+#ifndef NDEBUG
 void vAssertHook(void)
 {
 	HAL_GPIO_WritePin(LED_DBG_GPIO_Port, LED_DBG_Pin, GPIO_PIN_SET);
 	taskDISABLE_INTERRUPTS();
 	while(1);
 }
+#endif /* NDEBUG */
+
 /* USER CODE END 5 */
 
 /* USER CODE BEGIN GET_IDLE_TASK_MEMORY */
