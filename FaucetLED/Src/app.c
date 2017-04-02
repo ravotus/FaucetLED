@@ -114,7 +114,7 @@ static float compute_thermistor_temp_C(uint16_t adc_counts)
 	return temperature_C;
 }
 
-static void compute_led_color(uint32_t temp_C, struct led_color *output)
+static void compute_led_color(int32_t temp_C, struct led_color *output)
 {
 	if (!output)
 	{
