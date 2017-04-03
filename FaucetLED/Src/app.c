@@ -70,32 +70,94 @@ void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
 	}
 }
 
+void hsi2rgb(float H, float S, float I, uint8_t *r, uint8_t *g, uint8_t *b)
+{
+	if (!r || !g || !b)
+	{
+		return;
+	}
+
+	int rval, gval, bval;
+	H = fmod(H, 360); // cycle H around to 0-360 degrees
+	H = H * PI / 180.0f; // Convert to radians.
+	S = S>0?(S<1?S:1):0; // clamp S and I to interval [0,1]
+	I = I>0?(I<1?I:1):0;
+
+#if 0
+	// Math! Thanks in part to Kyle Miller.
+	if (H < (2.0f * PI / 3.0f))
+	{
+		rval = (255*I/3*(1+S*cosf(H)/cosf(1.047196667f-H)));
+		gval = (255*I/3*(1+S*(1-cosf(H)/cosf(1.047196667f-H))));
+		bval = (255*I/3*(1-S));
+	}
+	else if (H < (4.0f * PI / 3.0f))
+	{
+		//H = H - (2.0f * PI / 3.0f);
+		gval = (255*I/3*(1+S*cosf(H)/cosf(1.047196667f-H)));
+		bval = (255*I/3*(1+S*(1-cosf(H)/cosf(1.047196667f-H))));
+		rval = (255*I/3*(1-S));
+	}
+	else
+	{
+		//H = H - (4.0f * PI / 3.0f);
+		bval = (255*I/3*(1+S*cosf(H)/cosf(1.047196667f-H)));
+		rval = (255*I/3*(1+S*(1-cosf(H)/cosf(1.047196667f-H))));
+		gval = (255*I/3*(1-S));
+	}
+#else
+	// Math! Thanks in part to Kyle Miller.
+	if(H < 2.09439) {
+		rval = 255*I/3*(1+S*cos(H)/cos(1.047196667-H));
+		gval = 255*I/3*(1+S*(1-cos(H)/cos(1.047196667-H)));
+		bval = 255*I/3*(1-S);
+	} else if(H < 4.188787) {
+		H = H - 2.09439;
+		gval = 255*I/3*(1+S*cos(H)/cos(1.047196667-H));
+		bval = 255*I/3*(1+S*(1-cos(H)/cos(1.047196667-H)));
+		rval = 255*I/3*(1-S);
+	} else {
+		H = H - 4.188787;
+		bval = 255*I/3*(1+S*cos(H)/cos(1.047196667-H));
+		rval = 255*I/3*(1+S*(1-cos(H)/cos(1.047196667-H)));
+		gval = 255*I/3*(1-S);
+	}
+#endif
+	*r = rval;
+	*g = gval;
+	*b = bval;
+}
+
 static void compute_led_color(float temp_C, struct led_color *output)
 {
 	if (!output)
 	{
 		return;
 	}
+	float h, s, v;
 
+	s = 0.75f;
+
+	// Hot (26-60C)
 	if (temp_C > 26.0f)
 	{
-		// Hot (26-60C)
+		h = 0.0f;
 		const float M = -7.5f;
 		const float B = 450.0f;
-		output->red = 255;
-		output->green = (uint8_t)(powf(2.0f, (temp_C * M + B) * 8.0f / 255.0f) - 1);
-		output->blue = output->green;
-
+		//v = (powf(2.0f, (temp_C * M + B) * 8.0f / 255.0f) - 1) / 255.0f;
+		v = (temp_C * M + B) / 255.0f;
 	}
+	// Cold (10-26C)
 	else
 	{
-		// Cold (10-26C)
+		h = 160.0f;
 		const float M = 15.9375f;
 		const float B = -159.375f;
-		output->red = (uint8_t)(powf(2.0f, (temp_C * M + B) * 8.0f / 255.0f) - 1);
-		output->green = output->red;
-		output->blue = 255;
+		//v = (powf(2.0f, (temp_C * M + B) * 8.0f / 255.0f) - 1) / 255.0f;
+		v = (temp_C * M + B) / 255.0f;
 	}
+
+	hsi2rgb(h, s, v, &output->red, &output->green, &output->blue);
 }
 
 void AdcReaderTask(const void *arg)
@@ -216,8 +278,9 @@ void AdcReaderTask(const void *arg)
 		(void)HAL_ADCEx_DisableVoltageRegulator(&ADC_DEV);
 		(void)HAL_ADCEx_EnterADCDeepPowerDownMode(&ADC_DEV);
 
-		HAL_GPIO_WritePin(AMP_SHDN_GPIO_Port, AMP_SHDN_Pin, GPIO_PIN_RESET);
-		HAL_OPAMP_Stop(&OPAMP_DEV);
+		// TODO...
+		//HAL_GPIO_WritePin(AMP_SHDN_GPIO_Port, AMP_SHDN_Pin, GPIO_PIN_RESET);
+		//HAL_OPAMP_Stop(&OPAMP_DEV);
 
 		// ADC data is required to be right-aligned because the injected channels
 		// have oversampling enabled.
@@ -236,6 +299,9 @@ void AdcReaderTask(const void *arg)
 		float stddev_V;
 		arm_std_f32((float *)adc_data_f, NUM_ADC_SAMPLES, &stddev_V);
 
+		static float temp_test = 10.0f;
+
+#if 0
 		if (stddev_V > ADC_TRIGGER_STDEV_V)
 		{
 			if (num_shocks_last < NUM_SAMPLES_FOR_TRIGGER)
@@ -244,9 +310,17 @@ void AdcReaderTask(const void *arg)
 			}
 			else
 			{
+#endif
 				struct led_color color;
-				compute_led_color(temperature_C, &color);
+				compute_led_color(temp_test, &color);
 				led_set(&color);
+
+				temp_test += 5.0f;
+				if (temp_test > 60.0f)
+				{
+					temp_test = 10.0f;
+				}
+#if 0
 			}
 		}
 		else
@@ -260,7 +334,7 @@ void AdcReaderTask(const void *arg)
 				led_disable();
 			}
 		}
-
-		osDelayUntil(&last_wake_time, 100);
+#endif
+		osDelayUntil(&last_wake_time, 500);
 	}
 }
