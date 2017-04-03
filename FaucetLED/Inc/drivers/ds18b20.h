@@ -20,6 +20,14 @@ enum ds18b20_error
 
 #define DS18B20_READ_ROM_BUF_LEN	8
 
+enum ds18b20_resolution
+{
+	DS18B20_RESOLUTION_9BIT = 0,
+	DS18B20_RESOLUTION_10BIT,
+	DS18B20_RESOLUTION_11BIT,
+	DS18B20_RESOLUTION_12BIT,
+};
+
 // Initialize the DS18B20 device, including associated peripherals.
 // Parameters:
 // 	`uart_dev`: The UART device. This driver will take full control of the device.
@@ -28,7 +36,9 @@ enum ds18b20_error
 enum ds18b20_error ds18b20_init(UART_HandleTypeDef *uart_dev, CRC_HandleTypeDef *crc_dev);
 enum ds18b20_error ds18b20_deinit(void);
 
-enum ds18b20_error ds18b20_read_rom(uint8_t *rom_buf, size_t buf_len);
+enum ds18b20_error ds18b20_read_rom(uint8_t *rom_buf);
+enum ds18b20_error ds18b20_read_scratchpad(uint8_t *scratchpad_buf);
 enum ds18b20_error ds18b20_read_temp(float *temperature_C);
+enum ds18b20_error ds18b20_set_resolution(enum ds18b20_resolution res);
 
 #endif //__DS18B20_H__

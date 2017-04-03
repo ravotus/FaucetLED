@@ -19,13 +19,18 @@ void TemperatureTask(const void *arg)
 	{
 		Error_Handler();
 	}
-
+#if 0
+	if (DS18B20_EOK != ds18b20_set_resolution(DS18B20_RESOLUTION_9BIT))
+	{
+		Error_Handler();
+	}
+#endif
 	last_wake_time = osKernelSysTick();
 
 	while(1)
 	{
 		memset(ds18b20_rom_buf, 0, sizeof(ds18b20_rom_buf));
-		err = ds18b20_read_rom(ds18b20_rom_buf, DS18B20_READ_ROM_BUF_LEN);
+		err = ds18b20_read_rom(ds18b20_rom_buf);
 		err = ds18b20_read_temp(&temp_C);
 		(void)err;
 		osDelayUntil(&last_wake_time, 1000);
