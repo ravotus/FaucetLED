@@ -319,9 +319,9 @@ void AdcReaderTask(const void *arg)
 
 		ticks = osKernelSysTick();
 
-		// Check if the read value is at least 10% less than the calibration value.
+		// Check if the read value is at least 20% less than the calibration value.
 		// TODO: Compensate for drift in touch sensor value.
-		if ((touch_val < touch_cal) && ((10*touch_cal / touch_val)) >= 11)
+		if ((touch_val < touch_cal) && ((10*touch_cal / touch_val)) >= 12)
 		{
 			if ((ticks - last_led_change) > LED_UPDATE_DURATION_MS)
 			{
