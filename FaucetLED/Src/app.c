@@ -362,6 +362,8 @@ void AdcReaderTask(const void *arg)
 			{
 				update_touch_data(&app_touch_data, (TouchCal_s *)touch_data_item);
 			}
+
+			last_touch_update = ticks;
 		}
 
 		osDelayUntil(&last_wake_time, 200);
