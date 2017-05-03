@@ -242,10 +242,12 @@ void AdcReaderTask(const void *arg)
 {
 	(void)arg;
 	uint32_t last_wake_time;
+	uint32_t led_enable_time;
 	uint32_t last_led_change;
 	uint32_t last_touch_update;
 	uint16_t touch_val;
 	uint32_t ticks;
+	_Bool led_override = false;
 	LedCmd_S led_cmd;
 	TouchCal_s app_touch_data;
 	volatile TouchCal_s *touch_data_item;
@@ -312,6 +314,7 @@ void AdcReaderTask(const void *arg)
 	last_wake_time = osKernelSysTick();
 	last_led_change = last_wake_time;
 	last_touch_update = last_wake_time;
+	led_enable_time = 0;
 
 	while (1)
 	{
@@ -323,27 +326,47 @@ void AdcReaderTask(const void *arg)
 		// TODO: Compensate for drift in touch sensor value.
 		if ((touch_val < touch_cal) && ((10*touch_cal / touch_val)) >= 12)
 		{
-			if ((ticks - last_led_change) > LED_UPDATE_DURATION_MS)
+			if (! led_override)
 			{
-				thermistor_enable();
-				//adc_select_channel(ADC_CHANNEL_THERMISTOR);
-				adc_perform_conversion();
-				adc_perform_conversion();
-				thermistor_disable();
+				// If we are first turning on, note the time...
+				if (! led_get_active())
+				{
+					led_enable_time = ticks;
+				}
+				// Check if the LED has been on too long.
+				else if ((ticks - led_enable_time) > LED_MAX_ON_DURATION_MS)
+				{
+					led_override = true;
 
-				float temperature_C = compute_thermistor_temp_C(HAL_ADC_GetValue(&ADC_DEV));
+					led_cmd.id = LED_CMD_DISABLE;
+					(void)xQueueSend(LedCmdQHandle, &led_cmd, 0);
+				}
 
-				led_cmd.id = LED_CMD_FADE;
-				compute_led_color((uint32_t)temperature_C, &led_cmd.color);
-				(void)xQueueSend(LedCmdQHandle, &led_cmd, 0);
-				last_led_change = ticks;
+				// Check if it is time to update the LED color.
+				if ((ticks - last_led_change) > LED_UPDATE_DURATION_MS)
+				{
+					thermistor_enable();
+					//adc_select_channel(ADC_CHANNEL_THERMISTOR);
+					adc_perform_conversion();
+					adc_perform_conversion();
+					thermistor_disable();
+
+					float temperature_C = compute_thermistor_temp_C(HAL_ADC_GetValue(&ADC_DEV));
+
+					led_cmd.id = LED_CMD_FADE;
+					compute_led_color((uint32_t)temperature_C, &led_cmd.color);
+					(void)xQueueSend(LedCmdQHandle, &led_cmd, 0);
+					last_led_change = ticks;
+				}
 			}
 		}
-		else if (led_get_active() && ((ticks - last_led_change) > LED_DISABLE_DURATION_MS))
+		else if ((led_get_active() || led_override) && ((ticks - last_led_change) > LED_DISABLE_DURATION_MS))
 		{
 			led_cmd.id = LED_CMD_DISABLE;
 			(void)xQueueSend(LedCmdQHandle, &led_cmd, 0);
 			last_led_change = ticks;
+			// Reset the override flag since the LED has been disabled.
+			led_override = false;
 		}
 
 		// Update logged touch information
